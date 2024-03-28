@@ -3,10 +3,10 @@ description: "Updates all queries in dir"
 author: "Ben Smith (@bh2smith)"
 
 inputs:
-  - changedQueries:
+  changedQueries:
     description: "comma separated list of changed queries"
     required: true
-  - duneApiKey:
+  duneApiKey:
     description: "Credentials for Dune SDK (must be a PLUS tier subscription!)."
     required: true
 

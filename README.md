@@ -88,14 +88,14 @@ There are a few things to keep in mind when writing your action code:
   In `main.js`, you will see that the action is run in an `async` function.
 
   ```javascript
-  const core = require('@actions/core')
+  const core = require("@actions/core");
   //...
 
   async function run() {
     try {
       //...
     } catch (error) {
-      core.setFailed(error.message)
+      core.setFailed(error.message);
     }
   }
   ```
@@ -160,17 +160,18 @@ action in the same repository.
 steps:
   - name: Checkout
     id: checkout
-    uses: actions/checkout@v3
+    uses: actions/checkout@v4
 
   - name: Test Local Action
     id: test-action
     uses: ./
     with:
-      milliseconds: 1000
+      changedQueries: query_1.sql
+      duneApiKey: FAKE_KEY
 
   - name: Print Output
     id: output
-    run: echo "${{ steps.test-action.outputs.time }}"
+    run: echo "${{ steps.test-action.outputs.output }}"
 ```
 
 For example workflow runs, check out the

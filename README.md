@@ -166,11 +166,12 @@ steps:
     id: test-action
     uses: ./
     with:
-      milliseconds: 1000
+      changedFiles: query_1.sql
+      duneApiKey: FAKE_KEY
 
   - name: Print Output
     id: output
-    run: echo "${{ steps.test-action.outputs.time }}"
+    run: echo "${{ steps.test-action.outputs.output }}"
 ```
 
 For example workflow runs, check out the

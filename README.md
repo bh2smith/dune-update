@@ -166,7 +166,7 @@ steps:
     id: test-action
     uses: ./
     with:
-      changedFiles: query_1.sql
+      changedQueries: query_1.sql
       duneApiKey: FAKE_KEY
 
   - name: Print Output

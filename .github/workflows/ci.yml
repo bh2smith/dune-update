@@ -52,14 +52,14 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v3
-    
+
       - name: Test Local Action
         id: test-action
         uses: ./
         with:
           changedQueries: query_1.sql
           duneApiKey: FAKE_KEY
-    
+
       - name: Print Output
         id: output
         run: echo "${{ steps.test-action.outputs.output }}"

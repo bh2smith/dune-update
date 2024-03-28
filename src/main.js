@@ -35,11 +35,9 @@ async function run() {
     const queryManager = new QueryAPI(
       core.getInput("duneApiKey", { required: true }),
     );
-    console.log("QueryManager", queryManager);
     const changedFiles = core
       .getInput("changedQueries", { required: true })
       .split(",");
-    console.log("changedQueries", changedFiles);
     const updates = changedFiles.map(fileName => {
       const query_sql = readQueryFile(fileName);
       const queryId = extractQueryId(fileName);
@@ -56,7 +54,6 @@ async function run() {
         assert(queryId === updatedQueryId, "update not confirmed!");
       }
     } catch (error) {
-      core.error(`Error updating query ${queryId}: ${error}`);
       core.setFailed(error.message);
     }
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true

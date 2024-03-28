@@ -43,8 +43,8 @@ rules:
     "i18n-text/no-en": "off",
     "import/no-commonjs": "off",
     "import/no-namespace": "off",
-    "no-console": "on",
-    "no-unused-vars": "on",
+    "no-console": "error",
+    "no-unused-vars": "error",
     "prettier/prettier": "error",
-    "semi": "on",
+    "semi": "error",
   }

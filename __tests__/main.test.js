@@ -13,14 +13,9 @@ const setOutputMock = jest.spyOn(core, "setOutput").mockImplementation();
 
 // Mock the action's main function
 const runMock = jest.spyOn(main, "run");
-jest
-  .spyOn(QueryAPI.prototype, "updateQuery")
-  .mockImplementation((queryId, _) => {
-    return Promise.resolve(queryId);
-  });
-
-// Other utilities
-const timeRegex = /^\d{2}:\d{2}:\d{2}/;
+jest.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(queryId => {
+  return Promise.resolve(queryId);
+});
 
 describe("action", () => {
   beforeEach(() => {

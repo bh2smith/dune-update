@@ -46,4 +46,4 @@ jobs:
           JAVASCRIPT_DEFAULT_STYLE: prettier
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_JSCPD: false
-          SQLFLUFF_CONFIG_FILE: .github/linters/.sqlfulff.toml
+          SQLFLUFF_CONFIG_FILE: .github/linters/.sqlfluff.toml

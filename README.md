@@ -88,14 +88,14 @@ There are a few things to keep in mind when writing your action code:
   In `main.js`, you will see that the action is run in an `async` function.
 
   ```javascript
-  const core = require('@actions/core')
+  const core = require("@actions/core");
   //...
 
   async function run() {
     try {
       //...
     } catch (error) {
-      core.setFailed(error.message)
+      core.setFailed(error.message);
     }
   }
   ```

@@ -57,8 +57,8 @@ jobs:
         id: test-action
         uses: ./
         with:
-          changedQueries: query_1.sql
-          duneApiKey: FAKE_KEY
+          changedQueries: query_871114.sql
+          duneApiKey: ${{ secrets.DUNE_API_KEY }}
 
       - name: Print Output
         id: output

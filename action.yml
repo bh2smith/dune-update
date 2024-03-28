@@ -1,5 +1,5 @@
 name: "Dune Query Updater"
-description: "Updates all queries in dir"
+description: "Updates all queries provided in changedQueries"
 author: "Ben Smith (@bh2smith)"
 
 inputs:

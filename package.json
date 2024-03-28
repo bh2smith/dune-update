@@ -1,16 +1,16 @@
 {
-  "name": "javascript-action",
-  "description": "GitHub Actions JavaScript Template",
+  "name": "dune-update-action",
+  "description": "GitHub Actions For Dune Query Updates",
   "version": "0.0.0",
-  "author": "",
+  "author": "Ben Smith (@bh2smith)",
   "private": true,
-  "homepage": "https://github.com/actions/javascript-action#readme",
+  "homepage": "https://github.com/bh2smith/dune-update#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/javascript-action.git"
+    "url": "git+https://github.com/bh2smith/dune-update.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/javascript-action/issues"
+    "url": "https://github.com/bh2smith/dune-update/issues"
   },
   "keywords": [
     "GitHub",

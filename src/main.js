@@ -1,7 +1,6 @@
 const core = require("@actions/core");
 const fs = require("fs");
 const { QueryAPI } = require("@duneanalytics/client-sdk");
-const { assert } = require("console");
 
 function extractQueryId(name) {
   const match = name.match(/_(\d+)\.sql$/);
@@ -35,28 +34,27 @@ async function run() {
     const queryManager = new QueryAPI(
       core.getInput("duneApiKey", { required: true }),
     );
-    const changedFiles = core
-      .getInput("changedQueries", { required: true })
-      .split(",");
+    // getInput "Returns an empty string if the value is not defined."
+    // so this will be [ "" ] when no files are provided.
+    const changedFiles = core.getInput("changedQueries").split(",");
+    if (changedFiles[0] === "") {
+      core.info("No changed files provided.");
+      return;
+    }
     const updates = changedFiles.map(fileName => {
       const query_sql = readQueryFile(fileName);
       const queryId = extractQueryId(fileName);
       /// TODO - read additional data from queryconf.toml
       return { queryId, query_sql };
     });
-    core.info(`Updating queries ${changedFiles}`);
-    try {
-      // TODO assert queries exist.
-      for (const { queryId, query_sql } of updates) {
+    core.info(`Updating ${changedFiles.length} changed queries`);
+    for (const { queryId, query_sql } of updates) {
+      try {
         core.info(`Updating query with ID ${queryId}`);
-        const updatedQueryId = await queryManager.updateQuery(queryId, {
-          query_sql,
-        });
-        core.info(`Query Update Response ${updatedQueryId}`);
-        assert(queryId === updatedQueryId, "update not confirmed!");
+        await queryManager.updateQuery(queryId, { query_sql });
+      } catch (error) {
+        core.setFailed(error.message);
       }
-    } catch (error) {
-      core.setFailed(error.message);
     }
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
 

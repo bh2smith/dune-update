@@ -7,8 +7,9 @@ branding:
 
 inputs:
   changedQueries:
-    description: "comma separated list of changed queries"
-    required: true
+    description:
+      "Comma separated list of changed queries. Action Exits if no changed
+      files."
   duneApiKey:
     description: "Credentials for Dune SDK (must be a PLUS tier subscription!)."
     required: true

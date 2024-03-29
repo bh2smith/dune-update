@@ -50,6 +50,6 @@ names must be formatted as `*_{queryId}.sql`.
 For a real example of this workflow in action, please visit this
 [Demo Project](https://github.com/bh2smith/demo-ts-dune-client)! Specifically
 
-- [this workflow](https://github.com/bh2smith/demo-ts-dune-client/blob/main/.github/workflows/ci.yaml) and 
+- [this workflow](https://github.com/bh2smith/demo-ts-dune-client/blob/main/.github/workflows/ci.yaml)
+  and
 - [this successful run](https://github.com/bh2smith/demo-ts-dune-client/actions/runs/8479606867/job/23233904550)
-  

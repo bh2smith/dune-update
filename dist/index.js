@@ -30236,7 +30236,7 @@ function extractQueryId(name) {
     core.error(errorMessage);
     core.setFailed(errorMessage);
   }
-  return numericValue;
+  return parseInt(numericValue);
 }
 
 function readQueryFile(name) {
@@ -30267,6 +30267,7 @@ async function run() {
       /// TODO - read additional data from queryconf.toml
       return { queryId, query_sql };
     });
+    core.info(`Updating queries ${changedFiles}`);
     try {
       // TODO assert queries exist.
       for (const { queryId, query_sql } of updates) {
@@ -30274,6 +30275,7 @@ async function run() {
         const updatedQueryId = await queryManager.updateQuery(queryId, {
           query_sql,
         });
+        core.info(`Query Update Response ${updatedQueryId}`);
         assert(queryId === updatedQueryId, "update not confirmed!");
       }
     } catch (error) {

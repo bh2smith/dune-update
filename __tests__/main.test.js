@@ -41,12 +41,21 @@ describe("action", () => {
     // Verify that all of the core library functions were called correctly
     expect(infoMock).toHaveBeenNthCalledWith(
       1,
-      "Updating query with ID 3570870",
+      "Updating queries queries/query_3570870.sql,queries/query_871114.sql",
     );
     expect(infoMock).toHaveBeenNthCalledWith(
       2,
+      "Updating query with ID 3570870",
+    );
+    expect(infoMock).toHaveBeenNthCalledWith(
+      3,
+      "Query Update Response 3570870",
+    );
+    expect(infoMock).toHaveBeenNthCalledWith(
+      4,
       "Updating query with ID 871114",
     );
+    expect(infoMock).toHaveBeenNthCalledWith(5, "Query Update Response 871114");
     expect(setOutputMock).toHaveBeenNthCalledWith(
       1,
       "output",

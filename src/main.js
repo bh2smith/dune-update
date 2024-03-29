@@ -52,7 +52,7 @@ async function run() {
         const updatedQueryId = await queryManager.updateQuery(queryId, {
           query_sql,
         });
-        core.info(`Query Update response ${updatedQueryId}`);
+        core.info(`Query Update Response ${updatedQueryId}`);
         assert(queryId === updatedQueryId, "update not confirmed!");
       }
     } catch (error) {

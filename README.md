@@ -30,10 +30,12 @@ jobs:
       - name: Install necessary tools
         run: sudo apt-get install -y jq # Installing jq for JSON processing
 
-      - name: Get list of changed files in a specific directory
+      - name: Get list of changed files in "queries" directory
         id: get-changed-files
         run: |
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- queries | paste -sd "," -)
+          CHANGED_FILES=$(git diff \
+            --name-only ${{ github.event.before }} ${{ github.sha }} \
+            -- queries | paste -sd "," -)
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
           echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
 

@@ -1878,6 +1878,7 @@ const execution_1 = __nccwpck_require__(6343);
 const constants_1 = __nccwpck_require__(1749);
 const query_1 = __nccwpck_require__(712);
 const table_1 = __nccwpck_require__(8481);
+const custom_1 = __nccwpck_require__(4197);
 /// Various states of query execution that are "terminal".
 const TERMINAL_STATES = [
     types_1.ExecutionState.CANCELLED,
@@ -1894,6 +1895,7 @@ class DuneClient {
         this.exec = new execution_1.ExecutionAPI(apiKey);
         this.query = new query_1.QueryAPI(apiKey);
         this.table = new table_1.TableAPI(apiKey);
+        this.custom = new custom_1.CustomAPI(apiKey);
     }
     /**
      * Runs an existing query by ID via execute, await, return results.
@@ -1904,7 +1906,7 @@ class DuneClient {
     async runQuery(args) {
         const { queryId, opts } = args;
         args.limit = (opts === null || opts === void 0 ? void 0 : opts.batchSize) || args.limit;
-        const { state, execution_id } = await this._runInner(queryId, args, opts === null || opts === void 0 ? void 0 : opts.pingFrequency);
+        const { state, execution_id } = await this.refreshResults(queryId, args, opts === null || opts === void 0 ? void 0 : opts.pingFrequency);
         if (state === types_1.ExecutionState.COMPLETED) {
             const result = await this.getLatestResult(args);
             if (result.execution_id !== execution_id) {
@@ -1928,7 +1930,7 @@ class DuneClient {
     async runQueryCSV(args) {
         const { queryId, opts } = args;
         args.limit = (opts === null || opts === void 0 ? void 0 : opts.batchSize) || args.limit;
-        const { state, execution_id } = await this._runInner(queryId, args, opts === null || opts === void 0 ? void 0 : opts.pingFrequency);
+        const { state, execution_id } = await this.refreshResults(queryId, args, opts === null || opts === void 0 ? void 0 : opts.pingFrequency);
         if (state === types_1.ExecutionState.COMPLETED) {
             // we can't assert that the execution ids agree here!
             return this.exec.getLastResultCSV(queryId, args);
@@ -2012,14 +2014,22 @@ class DuneClient {
         }
         return results;
     }
-    async _runInner(queryID, params, pingFrequency = constants_1.POLL_FREQUENCY_SECONDS) {
-        loglevel_1.default.info(utils_2.logPrefix, `refreshing query https://dune.com/queries/${queryID} with parameters ${JSON.stringify(params)}`);
-        const { execution_id: jobID } = await this.exec.executeQuery(queryID, params);
-        let status = await this.exec.getExecutionStatus(jobID);
+    /**
+     * Executes query with provided parameters, checking every `pingFrequency`
+     * seconds until execution status reaches a terminal state.
+     * @param queryId
+     * @param params
+     * @param pingFrequency
+     * @returns
+     */
+    async refreshResults(queryId, params, pingFrequency = constants_1.POLL_FREQUENCY_SECONDS) {
+        loglevel_1.default.info(utils_2.logPrefix, `refreshing query https://dune.com/queries/${queryId} with parameters ${JSON.stringify(params)}`);
+        const { execution_id } = await this.exec.executeQuery(queryId, params);
+        let status = await this.exec.getExecutionStatus(execution_id);
         while (!TERMINAL_STATES.includes(status.state)) {
-            loglevel_1.default.info(utils_2.logPrefix, `waiting for query execution ${jobID} to complete: current state ${status.state}`);
+            loglevel_1.default.info(utils_2.logPrefix, `waiting for query execution ${execution_id} to complete: current state ${status.state}`);
             await (0, utils_1.sleep)(pingFrequency);
-            status = await this.exec.getExecutionStatus(jobID);
+            status = await this.exec.getExecutionStatus(execution_id);
         }
         return status;
     }
@@ -2035,6 +2045,43 @@ class DuneClient {
     }
 }
 exports.DuneClient = DuneClient;
+
+
+/***/ }),
+
+/***/ 4197:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CustomAPI = void 0;
+const router_1 = __nccwpck_require__(8233);
+/**
+ * Custom API Interface:
+ * Create custom API endpoints from existing Dune queries.
+ * https://docs.dune.com/api-reference/custom/overview
+ */
+class CustomAPI extends router_1.Router {
+    /**
+     * Custom Endpoints allow developers to create and manage API
+     * endpoints from Dune queries.
+     * By selecting a query and scheduling it to run at a specified
+     * frequency, developers can call a custom URL to consume data.
+     * This flexible alternative to Preset Endpoints provides greater
+     * customization without the complexities of SQL Endpoints.
+     *
+     * @param {CustomAPIParams} args - Parameters for the custom API request.
+     * @see {@link CustomAPIParams}
+     * @returns {Promise<ResultsResponse>} - The result of the API call.
+     * @see {@link ResultsResponse}
+     */
+    async getResults(args) {
+        const x = await this._get(`endpoints/${args.handle}/${args.slug}/results`, args);
+        return x;
+    }
+}
+exports.CustomAPI = CustomAPI;
 
 
 /***/ }),
@@ -2230,6 +2277,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__nccwpck_require__(4884), exports);
+__exportStar(__nccwpck_require__(4197), exports);
 __exportStar(__nccwpck_require__(6343), exports);
 __exportStar(__nccwpck_require__(712), exports);
 __exportStar(__nccwpck_require__(8233), exports);
@@ -2403,34 +2451,18 @@ class Router {
         return this._request(RequestMethod.POST, this.url(route), params, false, content_type);
     }
     async _handleResponse(responsePromise) {
-        let result;
         try {
             const response = await responsePromise;
             if (!response.ok) {
-                loglevel_1.default.error(utils_1.logPrefix, `response error ${response.status} - ${response.statusText}`);
+                const errorText = await response.text();
+                throw new types_1.DuneError(`HTTP - Status: ${response.status}, Message: ${errorText}`);
             }
-            const clonedResponse = response.clone();
-            try {
-                // Attempt to parse JSON
-                result = await response.json();
-            }
-            catch (_a) {
-                // Fallback to text if JSON parsing fails
-                // This fallback is used for CSV retrieving methods.
-                result = await clonedResponse.text();
-            }
-            // Check for error in result after parsing
-            if (result.error) {
-                loglevel_1.default.error(utils_1.logPrefix, `error contained in response ${JSON.stringify(result)}`);
-                // Assuming DuneError is a custom Error you'd like to throw
-                throw new types_1.DuneError(result.error instanceof Object ? result.error.type : result.error);
-            }
+            return (await response.json());
         }
         catch (error) {
-            loglevel_1.default.error(utils_1.logPrefix, `caught unhandled response error ${JSON.stringify(error)}`);
+            loglevel_1.default.error(utils_1.logPrefix, error);
             throw new types_1.DuneError(`Response ${error}`);
         }
-        return result;
     }
     async _request(method, url, payload, raw = false, content_type = types_1.ContentType.Json) {
         let body;
@@ -2457,7 +2489,7 @@ class Router {
         /// Build Url Search Parameters on GET
         if (method === "GET" && payload) {
             const searchParams = new URLSearchParams((0, types_1.payloadSearchParams)(payload)).toString();
-            pathParams = `?${searchParams}`;
+            pathParams = searchParams ? `?${searchParams}` : "";
         }
         loglevel_1.default.debug("Final request URL", url + pathParams);
         const response = (0, cross_fetch_1.default)(url + pathParams, requestData);
@@ -2605,12 +2637,108 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ExecutionAPI = exports.QueryAPI = exports.DuneClient = void 0;
+exports.Paginator = exports.TableAPI = exports.CustomAPI = exports.ExecutionAPI = exports.QueryAPI = exports.DuneClient = void 0;
 var api_1 = __nccwpck_require__(6991);
 Object.defineProperty(exports, "DuneClient", ({ enumerable: true, get: function () { return api_1.DuneClient; } }));
 Object.defineProperty(exports, "QueryAPI", ({ enumerable: true, get: function () { return api_1.QueryAPI; } }));
 Object.defineProperty(exports, "ExecutionAPI", ({ enumerable: true, get: function () { return api_1.ExecutionAPI; } }));
+Object.defineProperty(exports, "CustomAPI", ({ enumerable: true, get: function () { return api_1.CustomAPI; } }));
+Object.defineProperty(exports, "TableAPI", ({ enumerable: true, get: function () { return api_1.TableAPI; } }));
 __exportStar(__nccwpck_require__(5887), exports);
+var paginator_1 = __nccwpck_require__(534);
+Object.defineProperty(exports, "Paginator", ({ enumerable: true, get: function () { return paginator_1.Paginator; } }));
+
+
+/***/ }),
+
+/***/ 534:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Paginator = void 0;
+const types_1 = __nccwpck_require__(5887);
+class Paginator {
+    constructor(client, executionId, pageSize, firstPage, totalRows) {
+        this.client = client;
+        this.executionId = executionId;
+        this.pageSize = pageSize;
+        this.currentPageNumber = firstPage.number;
+        this.pageCache = new Map();
+        this.pageCache.set(this.currentPageNumber, firstPage);
+        this.totalRows = totalRows;
+    }
+    static async new(client, executionStatus, pageLimit) {
+        if (executionStatus.state !== types_1.ExecutionState.COMPLETED) {
+            throw new Error("Paginator can only be constructed on Complete execution state.");
+        }
+        const executionId = executionStatus.execution_id;
+        const results = await client.getExecutionResults(executionId, {
+            limit: pageLimit,
+            offset: 0,
+        });
+        if (!results.result) {
+            throw new Error("Can't paginate execution without results.");
+        }
+        const totalRows = results.result.metadata.total_row_count;
+        const firstPage = {
+            number: 1,
+            values: results.result.rows,
+        };
+        return new Paginator(client, executionId, pageLimit, firstPage, totalRows);
+    }
+    maxPage() {
+        return Math.ceil(this.totalRows / this.pageSize);
+    }
+    async nextPage() {
+        if (this.currentPageNumber < this.maxPage()) {
+            const nextPage = await this.getPage(this.currentPageNumber + 1);
+            this.currentPageNumber++;
+            return nextPage;
+        }
+        console.warn("You are already on the last page!");
+    }
+    async previousPage() {
+        if (this.currentPageNumber > 1) {
+            const previousPage = await this.getPage(this.currentPageNumber - 1);
+            this.currentPageNumber--;
+            return previousPage;
+        }
+        console.warn("You are already on the first page.");
+    }
+    async lastPage() {
+        const lastPage = await this.getPage(this.maxPage());
+        this.currentPageNumber = this.maxPage();
+        return lastPage;
+    }
+    async getPage(n) {
+        if (n >= 1 && n <= this.maxPage()) {
+            if (this.pageCache.has(n)) {
+                return this.pageCache.get(n);
+            }
+            const pageNResults = await this.client.getExecutionResults(this.executionId, {
+                limit: this.pageSize,
+                // Page 1 has offset 0.
+                offset: this.pageSize * (n - 1),
+            });
+            if (!pageNResults.result) {
+                throw new Error(`Expected results for page ${n} of ${this.maxPage}`);
+            }
+            const pageN = {
+                number: n,
+                values: pageNResults.result.rows,
+            };
+            this.pageCache.set(n, pageN);
+            return pageN;
+        }
+        console.warn(`Invalid page number requested ${n}: Must be contained in [1, ${this.maxPage()}]`);
+    }
+    getCurrentPageValues() {
+        return this.pageCache.get(this.currentPageNumber);
+    }
+}
+exports.Paginator = Paginator;
 
 
 /***/ }),
@@ -32397,7 +32525,7 @@ module.exports = parseParams
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"@duneanalytics/client-sdk","version":"0.1.5","author":"Ben Smith <bh2smith@gmail.com>","description":"Node Client for Dune Analytics\' officially supported API.","repository":"git@github.com:bh2smith/ts-dune-client.git","main":"dist/index.js","types":"dist/index.d.ts","files":["dist/**/*"],"scripts":{"build":"tsc","test":"ts-mocha \'tests/**/*.spec.ts\' -r dotenv/config --timeout 10000","fmt":"prettier --write \\"./**/*.ts\\"","lint":"eslint ./src"},"dependencies":{"cross-fetch":"^4.0.0","deprecated":"^0.0.2","loglevel":"^1.8.0"},"devDependencies":{"@types/chai":"^4.3.3","@types/mocha":"^10.0.6","@types/node":"^20.11.17","@typescript-eslint/eslint-plugin":"^7.1.0","@typescript-eslint/parser":"^7.1.0","chai":"^4.3.6","chai-as-promised":"^7.1.1","dotenv":"^16.0.3","eslint":"^8.57.0","eslint-config-prettier":"^9.1.0","mocha":"^10.3.0","prettier":"^3.2.5","ts-mocha":"^10.0.0","ts-node":"^10.9.1","typescript":"^5.3.3"}}');
+module.exports = JSON.parse('{"name":"@duneanalytics/client-sdk","version":"0.2.1","author":"Ben Smith <bh2smith@gmail.com>","description":"Node Client for Dune Analytics\' officially supported API.","repository":"git@github.com:duneanalytics/ts-dune-client.git","main":"dist/index.js","types":"dist/index.d.ts","files":["dist/**/*"],"scripts":{"build":"tsc","test":"ts-mocha \'tests/**/*.spec.ts\' -r dotenv/config --timeout 10000","fmt":"prettier --write \\"./**/*.ts\\"","lint":"eslint ./src"},"dependencies":{"cross-fetch":"^4.0.0","deprecated":"^0.0.2","loglevel":"^1.8.0"},"devDependencies":{"@types/chai":"^4.3.3","@types/mocha":"^10.0.6","@types/node":"^20.11.17","@typescript-eslint/eslint-plugin":"^7.1.0","@typescript-eslint/parser":"^7.1.0","chai":"^4.3.6","chai-as-promised":"^7.1.1","dotenv":"^16.0.3","eslint":"^8.57.0","eslint-config-prettier":"^9.1.0","mocha":"^10.3.0","prettier":"^3.2.5","ts-mocha":"^10.0.0","ts-node":"^10.9.1","typescript":"^5.3.3"}}');
 
 /***/ }),
 

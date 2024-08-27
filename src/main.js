@@ -45,13 +45,19 @@ async function run() {
         const query_sql = readQueryFile(fileName);
         const queryId = extractQueryId(fileName);
         if (query_sql === "") {
-          core.warn(`Skipping (deleted) file ${fileName}`);
+          core.warning(`Skipping (deleted) file ${fileName}`);
+          // TODO - add opt-in archive deleted query.
           return null;
         }
         /// TODO - read additional data from queryconf.toml
         return { queryId, query_sql };
       })
-      .filter(update => update === null);
+      .filter(update => update !== null);
+
+    if (updates.length === 0) {
+      core.info("No detected update files.");
+      return;
+    }
     core.info(`Updating ${changedFiles.length} changed queries`);
     for (const { queryId, query_sql } of updates) {
       try {

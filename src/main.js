@@ -19,9 +19,8 @@ function readQueryFile(name) {
   try {
     return fs.readFileSync(name, { encoding: "utf8" });
   } catch (error) {
-    const errorMessage = `Couldn't read query file: ${error}`;
-    core.error(errorMessage);
-    core.setFailed(errorMessage);
+    core.error(`Couldn't read query file: ${error}`);
+    return "";
   }
 }
 

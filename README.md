@@ -34,7 +34,7 @@ jobs:
         id: get-changed-files
         run: |
           CHANGED_FILES=$(git diff \
-            --name-only ${{ github.event.before }} ${{ github.sha }} \
+            --name-only --diff-filter=ACMRT ${{ github.event.before }} ${{ github.sha }} \
             -- queries | paste -sd "," -)
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
           echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT

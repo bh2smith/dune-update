@@ -41,12 +41,18 @@ async function run() {
       core.info("No changed files provided.");
       return;
     }
-    const updates = changedFiles.map(fileName => {
-      const query_sql = readQueryFile(fileName);
-      const queryId = extractQueryId(fileName);
-      /// TODO - read additional data from queryconf.toml
-      return { queryId, query_sql };
-    });
+    const updates = changedFiles
+      .map(fileName => {
+        const query_sql = readQueryFile(fileName);
+        const queryId = extractQueryId(fileName);
+        if (query_sql === "") {
+          core.warn(`Skipping (deleted) file ${fileName}`);
+          return null;
+        }
+        /// TODO - read additional data from queryconf.toml
+        return { queryId, query_sql };
+      })
+      .filter(update => update === null);
     core.info(`Updating ${changedFiles.length} changed queries`);
     for (const { queryId, query_sql } of updates) {
       try {

@@ -91,10 +91,6 @@ describe("action", () => {
     // Verify that all of the core library functions were called correctly
     expect(setFailedMock).toHaveBeenNthCalledWith(
       1,
-      "Couldn't read query file: Error: ENOENT: no such file or directory, open 'NonExistantFile.sql'",
-    );
-    expect(setFailedMock).toHaveBeenNthCalledWith(
-      2,
       "Couldn't extract queryID from filePath 'NonExistantFile.sql': must be formatted as '*_{queryId}.sql'",
     );
   });

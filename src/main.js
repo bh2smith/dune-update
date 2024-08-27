@@ -19,9 +19,8 @@ function readQueryFile(name) {
   try {
     return fs.readFileSync(name, { encoding: "utf8" });
   } catch (error) {
-    const errorMessage = `Couldn't read query file: ${error}`;
-    core.error(errorMessage);
-    core.setFailed(errorMessage);
+    core.error(`Couldn't read query file: ${error}`);
+    return "";
   }
 }
 
@@ -41,12 +40,24 @@ async function run() {
       core.info("No changed files provided.");
       return;
     }
-    const updates = changedFiles.map(fileName => {
-      const query_sql = readQueryFile(fileName);
-      const queryId = extractQueryId(fileName);
-      /// TODO - read additional data from queryconf.toml
-      return { queryId, query_sql };
-    });
+    const updates = changedFiles
+      .map(fileName => {
+        const query_sql = readQueryFile(fileName);
+        const queryId = extractQueryId(fileName);
+        if (query_sql === "") {
+          core.warning(`Skipping (deleted) file ${fileName}`);
+          // TODO - add opt-in archive deleted query.
+          return null;
+        }
+        /// TODO - read additional data from queryconf.toml
+        return { queryId, query_sql };
+      })
+      .filter(update => update !== null);
+
+    if (updates.length === 0) {
+      core.info("No detected update files.");
+      return;
+    }
     core.info(`Updating ${changedFiles.length} changed queries`);
     for (const { queryId, query_sql } of updates) {
       try {

@@ -34,20 +34,17 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        id: setup-node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: npm
+      - name: Setup Bun
+        id: setup-bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install Dependencies
         id: install
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Build dist/ Directory
         id: build
-        run: npm run bundle
+        run: bun run bundle
 
       - name: Compare Directories
         id: diff

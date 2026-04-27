@@ -1,12 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+
+vi.mock("@actions/core", () => ({
+  info: vi.fn(),
+  getInput: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+}));
+
 import * as core from "@actions/core";
 import * as main from "../src/main";
 import { QueryAPI } from "@duneanalytics/client-sdk";
 
-const infoMock = vi.spyOn(core, "info").mockImplementation(() => {});
-const getInputMock = vi.spyOn(core, "getInput").mockImplementation(() => "");
-const setFailedMock = vi.spyOn(core, "setFailed").mockImplementation(() => {});
-const setOutputMock = vi.spyOn(core, "setOutput").mockImplementation(() => {});
+const infoMock = core.info as Mock;
+const getInputMock = core.getInput as Mock;
+const setFailedMock = core.setFailed as Mock;
+const setOutputMock = core.setOutput as Mock;
 
 const runMock = vi.spyOn(main, "run");
 vi.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(

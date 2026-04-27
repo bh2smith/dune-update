@@ -21,28 +21,25 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        id: setup-node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: npm
+      - name: Setup Bun
+        id: setup-bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install Dependencies
-        id: npm-ci
-        run: npm ci
+        id: bun-install
+        run: bun install --frozen-lockfile
 
       - name: Check Format
-        id: npm-format-check
-        run: npm run format:check
+        id: format-check
+        run: bun run format:check
 
       - name: Lint
-        id: npm-lint
-        run: npm run lint
+        id: lint
+        run: bun run lint
 
       - name: Test
-        id: npm-ci-test
-        run: npm run ci-test
+        id: test
+        run: bun test
 
   test-action:
     name: GitHub Actions Test

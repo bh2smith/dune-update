@@ -58,11 +58,13 @@ jobs:
         id: test-action
         uses: ./
         with:
-          changedQueries: queries/query_871114.sql
-          duneApiKey: ${{ secrets.DUNE_API_KEY }} # zizmor: ignore[secrets-outside-env]
+          dune-api-key: ${{ secrets.DUNE_API_KEY }} # zizmor: ignore[secrets-outside-env]
+          changed-files: queries/query_871114.sql
 
       - name: Print Output
         id: output
         env:
-          ACTION_OUTPUT: ${{ steps.test-action.outputs.output }}
-        run: echo "$ACTION_OUTPUT"
+          UPDATED: ${{ steps.test-action.outputs.updated-count }}
+          SKIPPED: ${{ steps.test-action.outputs.skipped-count }}
+          QUERY_IDS: ${{ steps.test-action.outputs.updated-query-ids }}
+        run: echo "Updated=$UPDATED Skipped=$SKIPPED IDs=$QUERY_IDS"

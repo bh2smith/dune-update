@@ -1,22 +1,41 @@
 name: "Dune Query Updater"
-description: "Updates all queries provided in changedQueries"
+description: "Updates Dune Analytics queries from SQL files in your repository"
 author: "Ben Smith (@bh2smith)"
 branding:
   icon: "arrow-up-circle"
   color: "orange"
 
 inputs:
-  changedQueries:
-    description:
-      "Comma separated list of changed queries. Action Exits if no changed
-      files."
-  duneApiKey:
-    description: "Credentials for Dune SDK (must be a PLUS tier subscription!)."
+  dune-api-key:
+    description: "Dune API key (PLUS tier required)"
     required: true
+  duneApiKey:
+    description: "Deprecated: use dune-api-key instead"
+    required: false
+  query-path:
+    description: "Directory containing query files"
+    default: "queries"
+  changed-files:
+    description:
+      "Comma-separated list of changed query files (auto-detected if omitted)"
+    required: false
+  changedQueries:
+    description: "Deprecated: use changed-files instead"
+    required: false
+  dry-run:
+    description: "Preview changes without executing updates"
+    default: "false"
+  fail-on-error:
+    description: "Fail the action if any query update fails"
+    default: "true"
 
 outputs:
-  output:
-    description: "Not sure yet."
+  updated-count:
+    description: "Number of queries successfully updated"
+  skipped-count:
+    description: "Number of queries skipped"
+  updated-query-ids:
+    description: "Comma-separated list of updated query IDs"
 
 runs:
   using: node24

@@ -59,7 +59,7 @@ jobs:
         uses: ./
         with:
           changedQueries: queries/query_871114.sql
-          duneApiKey: ${{ secrets.DUNE_API_KEY }}
+          duneApiKey: ${{ secrets.DUNE_API_KEY }} # zizmor: ignore[secrets-outside-env]
 
       - name: Print Output
         id: output

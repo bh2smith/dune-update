@@ -26,7 +26,7 @@ Query files map to Dune query IDs in one of two ways:
 
 Name files as `*_{queryId}.sql`:
 
-```
+```text
 queries/
   daily_volume_123.sql
   user_stats_456.sql
@@ -36,7 +36,7 @@ queries/
 
 Place a `dune.toml` alongside your SQL:
 
-```
+```text
 queries/
   daily_volume/
     query.sql
@@ -57,6 +57,8 @@ precedence over filename parsing.
 
 ### Inputs
 
+<!-- markdownlint-disable MD013 -->
+
 | Input           | Required | Default     | Description                           |
 | --------------- | -------- | ----------- | ------------------------------------- |
 | `dune-api-key`  | Yes      | —           | Dune API key (PLUS tier required)     |
@@ -64,6 +66,8 @@ precedence over filename parsing.
 | `changed-files` | No       | auto-detect | Comma-separated list of changed files |
 | `dry-run`       | No       | `false`     | Preview changes without updating Dune |
 | `fail-on-error` | No       | `true`      | Fail the action if any update fails   |
+
+<!-- markdownlint-enable MD013 -->
 
 ### Outputs
 

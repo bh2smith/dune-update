@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import { QueryAPI } from "@duneanalytics/client-sdk";
 
 function extractQueryId(name: string): number | null {
@@ -10,7 +10,7 @@ function extractQueryId(name: string): number | null {
     core.setFailed(errorMessage);
     return null;
   }
-  return parseInt(match[1]);
+  return parseInt(match[1], 10);
 }
 
 function readQueryFile(name: string): string {

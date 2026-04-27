@@ -18917,7 +18917,7 @@ function info(message) {
 
 // src/main.ts
 var import_client_sdk = __toESM(require_cjs(), 1);
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 function extractQueryId(name) {
   const match = name.match(/_(\d+)\.sql$/);
   if (!match) {
@@ -18926,7 +18926,7 @@ function extractQueryId(name) {
     setFailed(errorMessage);
     return null;
   }
-  return parseInt(match[1]);
+  return parseInt(match[1], 10);
 }
 function readQueryFile(name) {
   try {
@@ -18978,4 +18978,4 @@ async function run() {
 // src/index.ts
 run();
 
-//# debugId=86CE89303072379364756E2164756E21
+//# debugId=DFE1F9B563E57DCF64756E2164756E21

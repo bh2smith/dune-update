@@ -1,30 +1,25 @@
-/**
- * Unit tests for the action's main functionality, src/main.js
- */
-const core = require("@actions/core");
-const main = require("../src/main");
-const { QueryAPI } = require("@duneanalytics/client-sdk");
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as core from "@actions/core";
+import * as main from "../src/main";
+import { QueryAPI } from "@duneanalytics/client-sdk";
 
-// Mock the GitHub Actions core library
-const infoMock = jest.spyOn(core, "info").mockImplementation();
-const getInputMock = jest.spyOn(core, "getInput").mockImplementation();
-const setFailedMock = jest.spyOn(core, "setFailed").mockImplementation();
-const setOutputMock = jest.spyOn(core, "setOutput").mockImplementation();
+const infoMock = vi.spyOn(core, "info").mockImplementation(() => {});
+const getInputMock = vi.spyOn(core, "getInput").mockImplementation(() => "");
+const setFailedMock = vi.spyOn(core, "setFailed").mockImplementation(() => {});
+const setOutputMock = vi.spyOn(core, "setOutput").mockImplementation(() => {});
 
-// Mock the action's main function
-const runMock = jest.spyOn(main, "run");
-jest.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(v => {
-  return Promise.resolve(v);
-});
+const runMock = vi.spyOn(main, "run");
+vi.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(
+  () => Promise.resolve() as never,
+);
 
 describe("action", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("runs successfully with 2 changed files", async () => {
-    // Set the action's inputs as return values from core.getInput()
-    getInputMock.mockImplementation(name => {
+    getInputMock.mockImplementation((name: string) => {
       switch (name) {
         case "changedQueries":
           return "queries/query_3570870.sql,queries/query_871114.sql";
@@ -38,7 +33,6 @@ describe("action", () => {
     await main.run();
     expect(runMock).toHaveReturned();
 
-    // Verify that all of the core library functions were called correctly
     expect(infoMock).toHaveBeenNthCalledWith(1, "Updating 2 changed queries");
     expect(infoMock).toHaveBeenNthCalledWith(
       2,
@@ -56,8 +50,7 @@ describe("action", () => {
   });
 
   it("logs and returns with no changed files", async () => {
-    // Set the action's inputs as return values from core.getInput()
-    getInputMock.mockImplementation(name => {
+    getInputMock.mockImplementation((name: string) => {
       switch (name) {
         case "duneApiKey":
           return "FAKE_KEY";
@@ -68,13 +61,11 @@ describe("action", () => {
     await main.run();
     expect(runMock).toHaveReturned();
 
-    // Verify that all of the core library functions were called correctly
     expect(infoMock).toHaveBeenNthCalledWith(1, "No changed files provided.");
   });
 
   it("sets a failed status", async () => {
-    // Set the action's inputs as return values from core.getInput()
-    getInputMock.mockImplementation(name => {
+    getInputMock.mockImplementation((name: string) => {
       switch (name) {
         case "changedQueries":
           return "NonExistantFile.sql";
@@ -88,7 +79,6 @@ describe("action", () => {
     await main.run();
     expect(runMock).toHaveReturned();
 
-    // Verify that all of the core library functions were called correctly
     expect(setFailedMock).toHaveBeenNthCalledWith(
       1,
       "Couldn't extract queryID from filePath 'NonExistantFile.sql': must be formatted as '*_{queryId}.sql'",

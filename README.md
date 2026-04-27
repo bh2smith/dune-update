@@ -1,18 +1,93 @@
-# Create a JavaScript Action
+# Dune Query Updater
 
 [![GitHub Super-Linter](https://github.com/actions/javascript-action/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
 ![CI](https://github.com/actions/javascript-action/actions/workflows/ci.yml/badge.svg)
 
-## How to Use this Action
+A GitHub Action (and standalone CLI) for syncing SQL query files to
+[Dune Analytics](https://dune.com). Edit queries locally, push to GitHub, and
+they're updated on Dune automatically.
 
-The expected workflow for query updates is that changes to query files are made
-through a pull request. One the pull request is merged to main, the action will
-trigger an update of all queries that were edited in the PR.
-
-Here is a sample workflow:
+## Quick Start
 
 ```yaml
-name: On Merge to Main
+- uses: bh2smith/dune-update@v1
+  with:
+    dune-api-key: ${{ secrets.DUNE_API_KEY }}
+```
+
+That's it. The action auto-detects which `.sql` files changed and updates the
+corresponding Dune queries.
+
+## How It Works
+
+Query files map to Dune query IDs in one of two ways:
+
+### Filename Convention
+
+Name files as `*_{queryId}.sql`:
+
+```
+queries/
+  daily_volume_123.sql
+  user_stats_456.sql
+```
+
+### Config File (Recommended)
+
+Place a `dune.toml` alongside your SQL:
+
+```
+queries/
+  daily_volume/
+    query.sql
+    dune.toml
+```
+
+```toml
+[query]
+id = 123
+name = "daily volume"
+description = "Updates dashboard metric"
+```
+
+Both approaches work side-by-side. When a `dune.toml` is present, it takes
+precedence over filename parsing.
+
+## GitHub Action
+
+### Inputs
+
+| Input           | Required | Default     | Description                           |
+| --------------- | -------- | ----------- | ------------------------------------- |
+| `dune-api-key`  | Yes      | —           | Dune API key (PLUS tier required)     |
+| `query-path`    | No       | `queries`   | Directory containing query files      |
+| `changed-files` | No       | auto-detect | Comma-separated list of changed files |
+| `dry-run`       | No       | `false`     | Preview changes without updating Dune |
+| `fail-on-error` | No       | `true`      | Fail the action if any update fails   |
+
+### Outputs
+
+| Output              | Description                               |
+| ------------------- | ----------------------------------------- |
+| `updated-count`     | Number of queries successfully updated    |
+| `skipped-count`     | Number of queries skipped                 |
+| `updated-query-ids` | Comma-separated list of updated query IDs |
+
+### Auto-Detection
+
+When `changed-files` is not provided, the action detects changes automatically:
+
+- **Pull requests**: diffs against the base branch
+- **Push events**: diffs against the previous commit
+
+This requires `fetch-depth: 0` (or sufficient depth) in your checkout step.
+
+### Examples
+
+#### Minimal (auto-detect changes)
+
+```yaml
+name: Update Dune Queries
 
 on:
   push:
@@ -22,37 +97,98 @@ jobs:
   update-queries:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necessary to get a complete history for diff
+          fetch-depth: 0
 
-      - name: Install necessary tools
-        run: sudo apt-get install -y jq # Installing jq for JSON processing
-
-      - name: Get list of changed files in "queries" directory
-        id: get-changed-files
-        run: |
-          CHANGED_FILES=$(git diff \
-            --name-only --diff-filter=ACMRT \
-            ${{ github.event.before }} ${{ github.sha }} \
-            -- queries | paste -sd "," -)
-          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
-          echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
-
-      - name: Update Queries
-        uses: bh2smith/dune-update@v0.0.0-beta.2
+      - uses: bh2smith/dune-update@v1
         with:
-          changedQueries: ${{ steps.get-changed-files.outputs.changed_files }}
-          duneApiKey: ${{ secrets.DUNE_API_KEY }}
+          dune-api-key: ${{ secrets.DUNE_API_KEY }}
 ```
 
-This expects that queries are saved in `./queries/`. Note that all query file
-names must be formatted as `*_{queryId}.sql`.
+#### Dry-Run on Pull Requests
 
-For a real example of this workflow in action, please visit this
-[Demo Project](https://github.com/bh2smith/demo-ts-dune-client)! Specifically
+```yaml
+name: Preview Dune Changes
 
-- [this workflow](https://github.com/bh2smith/demo-ts-dune-client/blob/main/.github/workflows/ci.yaml)
-  and
-- [this successful run](https://github.com/bh2smith/demo-ts-dune-client/actions/runs/8479606867/job/23233904550)
+on:
+  pull_request:
+    paths: [queries/**]
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: bh2smith/dune-update@v1
+        with:
+          dune-api-key: ${{ secrets.DUNE_API_KEY }}
+          dry-run: true
+```
+
+#### Explicit File List
+
+```yaml
+- name: Get changed files
+  id: changed
+  run: |
+    FILES=$(git diff --name-only --diff-filter=ACMRT \
+      ${{ github.event.before }} ${{ github.sha }} -- queries | paste -sd "," -)
+    echo "files=$FILES" >> $GITHUB_OUTPUT
+
+- uses: bh2smith/dune-update@v1
+  with:
+    dune-api-key: ${{ secrets.DUNE_API_KEY }}
+    changed-files: ${{ steps.changed.outputs.files }}
+```
+
+### Job Summary
+
+The action writes a summary table to the GitHub Actions UI showing the status of
+each query update.
+
+## CLI Usage
+
+Run locally without GitHub Actions:
+
+```bash
+# Install
+npm install -g dune-update-action
+
+# Auto-detect changes (uses git diff HEAD~1)
+dune-update --api-key <key>
+
+# Explicit files
+dune-update --api-key <key> --files queries/foo_123.sql,queries/bar_456.sql
+
+# Custom query directory
+dune-update --api-key <key> --query-path src/queries
+
+# Custom diff base
+dune-update --api-key <key> --base origin/main
+
+# Preview without updating
+dune-update --api-key <key> --dry-run
+```
+
+The API key can also be set via the `DUNE_API_KEY` environment variable.
+
+## Backwards Compatibility
+
+The previous input names (`duneApiKey`, `changedQueries`) still work as aliases.
+Existing workflows will continue to function without changes.
+
+## Development
+
+```bash
+bun install
+bun run test       # Run tests
+bun run lint       # Lint
+bun run all        # Format, lint, test, bundle
+```
+
+For a real example of this action in use, see the
+[Demo Project](https://github.com/bh2smith/demo-ts-dune-client).

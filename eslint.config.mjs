@@ -14,4 +14,10 @@ export default tseslint.config(
       "no-console": "error",
     },
   },
+  {
+    files: ["src/cli.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
 );

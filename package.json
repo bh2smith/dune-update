@@ -3,7 +3,10 @@
   "description": "GitHub Actions For Dune Query Updates",
   "version": "0.0.0",
   "author": "Ben Smith (@bh2smith)",
-  "private": true,
+  "private": false,
+  "bin": {
+    "dune-update": "./dist/cli.js"
+  },
   "homepage": "https://github.com/bh2smith/dune-update#readme",
   "repository": {
     "type": "git",
@@ -30,14 +33,15 @@
     "format:write": "bunx --bun prettier --write .",
     "format:check": "bunx --bun prettier --check .",
     "lint": "bunx --bun eslint .",
-    "package": "bun build src/index.ts --outdir dist --target node --bundle --sourcemap=external --entry-naming index.js",
+    "package": "bun build src/index.ts src/cli.ts --outdir dist --target node --bundle --sourcemap=external",
     "test": "bunx --bun vitest run",
     "all": "bun run format:write && bun run lint && bun run test && bun run package"
   },
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^3.0.1",
-    "@duneanalytics/client-sdk": "^0.3.5"
+    "@duneanalytics/client-sdk": "^0.3.5",
+    "smol-toml": "^1.6.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

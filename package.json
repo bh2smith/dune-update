@@ -3,6 +3,7 @@
   "description": "GitHub Actions For Dune Query Updates",
   "version": "0.0.0",
   "author": "Ben Smith (@bh2smith)",
+  "type": "module",
   "private": false,
   "bin": {
     "dune-update": "./dist/cli.js"

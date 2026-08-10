@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import escapeHtml from "escape-html";
 import { processUpdates } from "./dune";
 import { detectChangedFiles } from "./files";
 import type { UpdateResult } from "./types";
@@ -140,11 +141,4 @@ async function writeSummary(
   }
 
   await core.summary.write();
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }

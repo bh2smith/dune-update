@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { processUpdates } from "../src/dune";
+import { processUpdates, QueryClient } from "../src/dune";
 import { QueryAPI } from "@duneanalytics/client-sdk";
 
 vi.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(
@@ -114,6 +114,18 @@ describe("processUpdates", () => {
     expect(results).toHaveLength(2);
     expect(results[0].status).toBe("failed");
     expect(results[1].status).toBe("updated");
+  });
+
+  it("routes requests through a custom API base URL", () => {
+    const client = new QueryClient("test-key", "https://dev.example.com/api");
+    expect(client.url("query/42/update")).toBe(
+      "https://dev.example.com/api/v1/query/42/update",
+    );
+  });
+
+  it("defaults to the production API base URL", () => {
+    const client = new QueryClient("test-key");
+    expect(client.url("query/42")).toBe("https://api.dune.com/api/v1/query/42");
   });
 
   it("reads config from dune.toml when present", async () => {

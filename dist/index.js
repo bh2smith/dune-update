@@ -19925,10 +19925,22 @@ function detectDiffBase() {
 }
 
 // src/dune.ts
+var DEFAULT_API_BASE_URL = "https://api.dune.com/api";
+
+class QueryClient extends import_client_sdk.QueryAPI {
+  baseUrl;
+  constructor(apiKey, baseUrl = DEFAULT_API_BASE_URL) {
+    super(apiKey);
+    this.baseUrl = baseUrl;
+  }
+  url(route) {
+    return `${this.baseUrl}/v1/${route}`;
+  }
+}
 async function processUpdates(options) {
-  const { apiKey, files, dryRun = false } = options;
+  const { apiKey, files, dryRun = false, apiBaseUrl } = options;
   const results = [];
-  const queryManager = dryRun ? null : new import_client_sdk.QueryAPI(apiKey);
+  const queryManager = dryRun ? null : new QueryClient(apiKey, apiBaseUrl);
   for (const file of files) {
     const config = resolveQueryConfig(file);
     if (!config) {
@@ -19983,6 +19995,7 @@ async function run() {
       return;
     }
     const queryPath = getInput("query-path") || "queries";
+    const apiBaseUrl = getInput("api-base-url") || undefined;
     const dryRun = getInput("dry-run") === "true";
     const failOnError = getInput("fail-on-error") !== "false";
     let files;
@@ -20001,7 +20014,7 @@ async function run() {
       info("[Dry Run] Previewing changes (no updates will be made):");
     }
     info(`Processing ${files.length} changed query file(s)`);
-    const results = await processUpdates({ apiKey, files, dryRun });
+    const results = await processUpdates({ apiKey, files, dryRun, apiBaseUrl });
     const updated = results.filter((r) => r.status === "updated");
     const skipped = results.filter((r) => r.status === "skipped");
     const failed = results.filter((r) => r.status === "failed");
@@ -20054,4 +20067,4 @@ async function writeSummary(results, dryRun) {
 // src/index.ts
 run();
 
-//# debugId=E3CC3D529487E63364756E2164756E21
+//# debugId=37D8B21A7B381FE264756E2164756E21

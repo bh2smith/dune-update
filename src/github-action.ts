@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import escapeHtml from "escape-html";
 import { processUpdates } from "./dune";
 import { detectChangedFiles } from "./files";
 import type { UpdateResult } from "./types";
@@ -45,10 +46,12 @@ export async function run(): Promise<void> {
       UpdateResult,
       { status: "updated" }
     >[];
+    const unchanged = results.filter(r => r.status === "unchanged");
     const skipped = results.filter(r => r.status === "skipped");
     const failed = results.filter(r => r.status === "failed");
 
     core.setOutput("updated-count", String(updated.length));
+    core.setOutput("unchanged-count", String(unchanged.length));
     core.setOutput("skipped-count", String(skipped.length));
     core.setOutput("updated-query-ids", updated.map(r => r.queryId).join(","));
 
@@ -59,6 +62,11 @@ export async function run(): Promise<void> {
           core.info(`${prefix} query ${result.queryId} from ${result.file}`);
           break;
         }
+        case "unchanged":
+          core.info(
+            `Query ${result.queryId} already matches ${result.file}, nothing to update`,
+          );
+          break;
         case "skipped":
           core.warning(`Skipped ${result.file}: ${result.reason}`);
           break;
@@ -95,33 +103,42 @@ async function writeSummary(
 
   const dataRows = results.map(r => {
     const queryId =
-      r.status === "updated"
-        ? String(r.queryId)
-        : r.status === "failed" && r.queryId
-          ? String(r.queryId)
-          : "-";
+      r.status !== "skipped" && r.queryId ? String(r.queryId) : "-";
 
     const status =
       r.status === "updated"
         ? dryRun
           ? "Would Update"
           : "Updated"
-        : r.status === "skipped"
-          ? "Skipped"
-          : "Failed";
+        : r.status === "unchanged"
+          ? "Unchanged"
+          : r.status === "skipped"
+            ? "Skipped"
+            : "Failed";
 
     return [queryId, r.file, status];
   });
 
   const updated = results.filter(r => r.status === "updated").length;
+  const unchanged = results.filter(r => r.status === "unchanged").length;
   const skipped = results.filter(r => r.status === "skipped").length;
   const failed = results.filter(r => r.status === "failed").length;
 
-  await core.summary
+  core.summary
     .addHeading(heading)
     .addTable([headerRow, ...dataRows])
     .addRaw(
-      `\n**Updated:** ${updated} | **Skipped:** ${skipped} | **Failed:** ${failed}`,
-    )
-    .write();
+      `\n**Updated:** ${updated} | **Unchanged:** ${unchanged} | **Skipped:** ${skipped} | **Failed:** ${failed}`,
+    );
+
+  for (const result of results) {
+    if (result.status === "updated" && result.diff) {
+      core.summary.addDetails(
+        `Diff for query ${result.queryId} (${result.file})`,
+        `\n\n<pre><code>${escapeHtml(result.diff)}</code></pre>\n`,
+      );
+    }
+  }
+
+  await core.summary.write();
 }

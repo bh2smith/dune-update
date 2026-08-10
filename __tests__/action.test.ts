@@ -11,6 +11,7 @@ vi.mock("@actions/core", () => ({
     addHeading: vi.fn().mockReturnThis(),
     addTable: vi.fn().mockReturnThis(),
     addRaw: vi.fn().mockReturnThis(),
+    addDetails: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -27,6 +28,11 @@ const warningMock = core.warning as Mock;
 
 vi.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(
   () => Promise.resolve() as never,
+);
+
+// Current query text is unavailable, so every changed file is updated.
+vi.spyOn(QueryAPI.prototype, "readQuery").mockImplementation(
+  () => Promise.reject(new Error("not found")) as never,
 );
 
 function mockInputs(inputs: Record<string, string>) {

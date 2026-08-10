@@ -16915,6 +16915,57 @@ var require_eventsource = __commonJS((exports, module) => {
   };
 });
 
+// node_modules/escape-html/index.js
+var require_escape_html = __commonJS((exports, module) => {
+  /*!
+   * escape-html
+   * Copyright(c) 2012-2013 TJ Holowaychuk
+   * Copyright(c) 2015 Andreas Lubbe
+   * Copyright(c) 2015 Tiancheng "Timothy" Gu
+   * MIT Licensed
+   */
+  var matchHtmlRegExp = /["'&<>]/;
+  module.exports = escapeHtml;
+  function escapeHtml(string) {
+    var str = "" + string;
+    var match = matchHtmlRegExp.exec(str);
+    if (!match) {
+      return str;
+    }
+    var escape;
+    var html = "";
+    var index = 0;
+    var lastIndex = 0;
+    for (index = match.index;index < str.length; index++) {
+      switch (str.charCodeAt(index)) {
+        case 34:
+          escape = "&quot;";
+          break;
+        case 38:
+          escape = "&amp;";
+          break;
+        case 39:
+          escape = "&#39;";
+          break;
+        case 60:
+          escape = "&lt;";
+          break;
+        case 62:
+          escape = "&gt;";
+          break;
+        default:
+          continue;
+      }
+      if (lastIndex !== index) {
+        html += str.substring(lastIndex, index);
+      }
+      lastIndex = index + 1;
+      html += escape;
+    }
+    return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
+  }
+});
+
 // node_modules/@duneanalytics/client-sdk/dist/cjs/types/error.js
 var require_error = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
@@ -18923,9 +18974,529 @@ function info(message) {
   process.stdout.write(message + os4.EOL);
 }
 
+// src/github-action.ts
+var import_escape_html = __toESM(require_escape_html(), 1);
+
 // src/dune.ts
 var import_client_sdk = __toESM(require_cjs(), 1);
+// node_modules/diff/libesm/diff/base.js
+class Diff {
+  diff(oldStr, newStr, options = {}) {
+    let callback;
+    if (typeof options === "function") {
+      callback = options;
+      options = {};
+    } else if ("callback" in options) {
+      callback = options.callback;
+    }
+    const oldString = this.castInput(oldStr, options);
+    const newString = this.castInput(newStr, options);
+    const oldTokens = this.removeEmpty(this.tokenize(oldString, options));
+    const newTokens = this.removeEmpty(this.tokenize(newString, options));
+    return this.diffWithOptionsObj(oldTokens, newTokens, options, callback);
+  }
+  diffWithOptionsObj(oldTokens, newTokens, options, callback) {
+    var _a;
+    const done = (value) => {
+      value = this.postProcess(value, options);
+      if (callback) {
+        setTimeout(function() {
+          callback(value);
+        }, 0);
+        return;
+      } else {
+        return value;
+      }
+    };
+    const newLen = newTokens.length, oldLen = oldTokens.length;
+    let editLength = 1;
+    let maxEditLength = newLen + oldLen;
+    if (options.maxEditLength != null) {
+      maxEditLength = Math.min(maxEditLength, options.maxEditLength);
+    }
+    const maxExecutionTime = (_a = options.timeout) !== null && _a !== undefined ? _a : Infinity;
+    const abortAfterTimestamp = Date.now() + maxExecutionTime;
+    const bestPath = [{ oldPos: -1, lastComponent: undefined }];
+    let newPos = this.extractCommon(bestPath[0], newTokens, oldTokens, 0, options);
+    if (bestPath[0].oldPos + 1 >= oldLen && newPos + 1 >= newLen) {
+      return done(this.buildValues(bestPath[0].lastComponent, newTokens, oldTokens));
+    }
+    let minDiagonalToConsider = -Infinity, maxDiagonalToConsider = Infinity;
+    const execEditLength = () => {
+      for (let diagonalPath = Math.max(minDiagonalToConsider, -editLength);diagonalPath <= Math.min(maxDiagonalToConsider, editLength); diagonalPath += 2) {
+        let basePath;
+        const removePath = bestPath[diagonalPath - 1], addPath = bestPath[diagonalPath + 1];
+        if (removePath) {
+          bestPath[diagonalPath - 1] = undefined;
+        }
+        let canAdd = false;
+        if (addPath) {
+          const addPathNewPos = addPath.oldPos - diagonalPath;
+          canAdd = addPath && 0 <= addPathNewPos && addPathNewPos < newLen;
+        }
+        const canRemove = removePath && removePath.oldPos + 1 < oldLen;
+        if (!canAdd && !canRemove) {
+          bestPath[diagonalPath] = undefined;
+          continue;
+        }
+        if (!canRemove || canAdd && removePath.oldPos < addPath.oldPos) {
+          basePath = this.addToPath(addPath, true, false, 0, options);
+        } else {
+          basePath = this.addToPath(removePath, false, true, 1, options);
+        }
+        newPos = this.extractCommon(basePath, newTokens, oldTokens, diagonalPath, options);
+        if (basePath.oldPos + 1 >= oldLen && newPos + 1 >= newLen) {
+          return done(this.buildValues(basePath.lastComponent, newTokens, oldTokens)) || true;
+        } else {
+          bestPath[diagonalPath] = basePath;
+          if (basePath.oldPos + 1 >= oldLen) {
+            maxDiagonalToConsider = Math.min(maxDiagonalToConsider, diagonalPath - 1);
+          }
+          if (newPos + 1 >= newLen) {
+            minDiagonalToConsider = Math.max(minDiagonalToConsider, diagonalPath + 1);
+          }
+        }
+      }
+      editLength++;
+    };
+    if (callback) {
+      (function exec() {
+        setTimeout(function() {
+          if (editLength > maxEditLength || Date.now() > abortAfterTimestamp) {
+            return callback(undefined);
+          }
+          if (!execEditLength()) {
+            exec();
+          }
+        }, 0);
+      })();
+    } else {
+      while (editLength <= maxEditLength && Date.now() <= abortAfterTimestamp) {
+        const ret = execEditLength();
+        if (ret) {
+          return ret;
+        }
+      }
+    }
+  }
+  addToPath(path, added, removed, oldPosInc, options) {
+    const last = path.lastComponent;
+    if (last && !options.oneChangePerToken && last.added === added && last.removed === removed) {
+      return {
+        oldPos: path.oldPos + oldPosInc,
+        lastComponent: { count: last.count + 1, added, removed, previousComponent: last.previousComponent }
+      };
+    } else {
+      return {
+        oldPos: path.oldPos + oldPosInc,
+        lastComponent: { count: 1, added, removed, previousComponent: last }
+      };
+    }
+  }
+  extractCommon(basePath, newTokens, oldTokens, diagonalPath, options) {
+    const newLen = newTokens.length, oldLen = oldTokens.length;
+    let oldPos = basePath.oldPos, newPos = oldPos - diagonalPath, commonCount = 0;
+    while (newPos + 1 < newLen && oldPos + 1 < oldLen && this.equals(oldTokens[oldPos + 1], newTokens[newPos + 1], options)) {
+      newPos++;
+      oldPos++;
+      commonCount++;
+      if (options.oneChangePerToken) {
+        basePath.lastComponent = { count: 1, previousComponent: basePath.lastComponent, added: false, removed: false };
+      }
+    }
+    if (commonCount && !options.oneChangePerToken) {
+      basePath.lastComponent = { count: commonCount, previousComponent: basePath.lastComponent, added: false, removed: false };
+    }
+    basePath.oldPos = oldPos;
+    return newPos;
+  }
+  equals(left, right, options) {
+    if (options.comparator) {
+      return options.comparator(left, right);
+    } else {
+      return left === right || !!options.ignoreCase && left.toLowerCase() === right.toLowerCase();
+    }
+  }
+  removeEmpty(array) {
+    const ret = [];
+    for (let i = 0;i < array.length; i++) {
+      if (array[i]) {
+        ret.push(array[i]);
+      }
+    }
+    return ret;
+  }
+  castInput(value, options) {
+    return value;
+  }
+  tokenize(value, options) {
+    return Array.from(value);
+  }
+  join(chars) {
+    return chars.join("");
+  }
+  postProcess(changeObjects, options) {
+    return changeObjects;
+  }
+  get useLongestToken() {
+    return false;
+  }
+  buildValues(lastComponent, newTokens, oldTokens) {
+    const components = [];
+    let nextComponent;
+    while (lastComponent) {
+      components.push(lastComponent);
+      nextComponent = lastComponent.previousComponent;
+      delete lastComponent.previousComponent;
+      lastComponent = nextComponent;
+    }
+    components.reverse();
+    const componentLen = components.length;
+    let componentPos = 0, newPos = 0, oldPos = 0;
+    for (;componentPos < componentLen; componentPos++) {
+      const component = components[componentPos];
+      if (!component.removed) {
+        if (!component.added && this.useLongestToken) {
+          let value = newTokens.slice(newPos, newPos + component.count);
+          value = value.map(function(value2, i) {
+            const oldValue = oldTokens[oldPos + i];
+            return oldValue.length > value2.length ? oldValue : value2;
+          });
+          component.value = this.join(value);
+        } else {
+          component.value = this.join(newTokens.slice(newPos, newPos + component.count));
+        }
+        newPos += component.count;
+        if (!component.added) {
+          oldPos += component.count;
+        }
+      } else {
+        component.value = this.join(oldTokens.slice(oldPos, oldPos + component.count));
+        oldPos += component.count;
+      }
+    }
+    return components;
+  }
+}
 
+// node_modules/diff/libesm/diff/line.js
+class LineDiff extends Diff {
+  constructor() {
+    super(...arguments);
+    this.tokenize = tokenize;
+  }
+  equals(left, right, options) {
+    if (options.ignoreWhitespace) {
+      if (!options.newlineIsToken || !left.includes(`
+`)) {
+        left = left.trim();
+      }
+      if (!options.newlineIsToken || !right.includes(`
+`)) {
+        right = right.trim();
+      }
+    } else if (options.ignoreNewlineAtEof && !options.newlineIsToken) {
+      if (left.endsWith(`
+`)) {
+        left = left.slice(0, -1);
+      }
+      if (right.endsWith(`
+`)) {
+        right = right.slice(0, -1);
+      }
+    }
+    return super.equals(left, right, options);
+  }
+}
+var lineDiff = new LineDiff;
+function diffLines(oldStr, newStr, options) {
+  return lineDiff.diff(oldStr, newStr, options);
+}
+function tokenize(value, options) {
+  if (options.stripTrailingCr) {
+    value = value.replace(/\r\n/g, `
+`);
+  }
+  const retLines = [], linesAndNewlines = value.split(/(\n|\r\n)/);
+  if (!linesAndNewlines[linesAndNewlines.length - 1]) {
+    linesAndNewlines.pop();
+  }
+  for (let i = 0;i < linesAndNewlines.length; i++) {
+    const line = linesAndNewlines[i];
+    if (i % 2 && !options.newlineIsToken) {
+      retLines[retLines.length - 1] += line;
+    } else {
+      retLines.push(line);
+    }
+  }
+  return retLines;
+}
+
+// node_modules/diff/libesm/patch/create.js
+function needsQuoting(s) {
+  for (let i = 0;i < s.length; i++) {
+    if (s[i] < " " || s[i] > "~" || s[i] === '"' || s[i] === "\\") {
+      return true;
+    }
+  }
+  return false;
+}
+function quoteFileNameIfNeeded(s) {
+  if (!needsQuoting(s)) {
+    return s;
+  }
+  let result = '"';
+  const bytes = new TextEncoder().encode(s);
+  let i = 0;
+  while (i < bytes.length) {
+    const b = bytes[i];
+    if (b === 7) {
+      result += "\\a";
+    } else if (b === 8) {
+      result += "\\b";
+    } else if (b === 9) {
+      result += "\\t";
+    } else if (b === 10) {
+      result += "\\n";
+    } else if (b === 11) {
+      result += "\\v";
+    } else if (b === 12) {
+      result += "\\f";
+    } else if (b === 13) {
+      result += "\\r";
+    } else if (b === 34) {
+      result += "\\\"";
+    } else if (b === 92) {
+      result += "\\\\";
+    } else if (b >= 32 && b <= 126) {
+      result += String.fromCharCode(b);
+    } else {
+      result += "\\" + b.toString(8).padStart(3, "0");
+    }
+    i++;
+  }
+  result += '"';
+  return result;
+}
+var INCLUDE_HEADERS = {
+  includeIndex: true,
+  includeUnderline: true,
+  includeFileHeaders: true
+};
+function structuredPatch(oldFileName, newFileName, oldStr, newStr, oldHeader, newHeader, options) {
+  let optionsObj;
+  if (!options) {
+    optionsObj = {};
+  } else if (typeof options === "function") {
+    optionsObj = { callback: options };
+  } else {
+    optionsObj = options;
+  }
+  if (typeof optionsObj.context === "undefined") {
+    optionsObj.context = 4;
+  }
+  const context = optionsObj.context;
+  if (optionsObj.newlineIsToken) {
+    throw new Error("newlineIsToken may not be used with patch-generation functions, only with diffing functions");
+  }
+  if (!optionsObj.callback) {
+    return diffLinesResultToPatch(diffLines(oldStr, newStr, optionsObj));
+  } else {
+    const { callback } = optionsObj;
+    diffLines(oldStr, newStr, Object.assign(Object.assign({}, optionsObj), { callback: (diff) => {
+      const patch = diffLinesResultToPatch(diff);
+      callback(patch);
+    } }));
+  }
+  function diffLinesResultToPatch(diff) {
+    if (!diff) {
+      return;
+    }
+    diff.push({ value: "", lines: [] });
+    function contextLines(lines) {
+      return lines.map(function(entry) {
+        return " " + entry;
+      });
+    }
+    const hunks = [];
+    let oldRangeStart = 0, newRangeStart = 0, curRange = [], oldLine = 1, newLine = 1;
+    for (let i = 0;i < diff.length; i++) {
+      const current = diff[i], lines = current.lines || splitLines(current.value);
+      current.lines = lines;
+      if (current.added || current.removed) {
+        if (!oldRangeStart) {
+          const prev = diff[i - 1];
+          oldRangeStart = oldLine;
+          newRangeStart = newLine;
+          if (prev) {
+            curRange = context > 0 ? contextLines(prev.lines.slice(-context)) : [];
+            oldRangeStart -= curRange.length;
+            newRangeStart -= curRange.length;
+          }
+        }
+        for (const line of lines) {
+          curRange.push((current.added ? "+" : "-") + line);
+        }
+        if (current.added) {
+          newLine += lines.length;
+        } else {
+          oldLine += lines.length;
+        }
+      } else {
+        if (oldRangeStart) {
+          if (lines.length <= context * 2 && i < diff.length - 2) {
+            for (const line of contextLines(lines)) {
+              curRange.push(line);
+            }
+          } else {
+            const contextSize = Math.min(lines.length, context);
+            for (const line of contextLines(lines.slice(0, contextSize))) {
+              curRange.push(line);
+            }
+            const hunk = {
+              oldStart: oldRangeStart,
+              oldLines: oldLine - oldRangeStart + contextSize,
+              newStart: newRangeStart,
+              newLines: newLine - newRangeStart + contextSize,
+              lines: curRange
+            };
+            hunks.push(hunk);
+            oldRangeStart = 0;
+            newRangeStart = 0;
+            curRange = [];
+          }
+        }
+        oldLine += lines.length;
+        newLine += lines.length;
+      }
+    }
+    for (const hunk of hunks) {
+      for (let i = 0;i < hunk.lines.length; i++) {
+        if (hunk.lines[i].endsWith(`
+`)) {
+          hunk.lines[i] = hunk.lines[i].slice(0, -1);
+        } else {
+          hunk.lines.splice(i + 1, 0, "\\ No newline at end of file");
+          i++;
+        }
+      }
+    }
+    return {
+      oldFileName,
+      newFileName,
+      oldHeader,
+      newHeader,
+      hunks
+    };
+  }
+}
+function formatPatch(patch, headerOptions) {
+  var _a, _b, _c, _d, _e, _f;
+  if (!headerOptions) {
+    headerOptions = INCLUDE_HEADERS;
+  }
+  if (Array.isArray(patch)) {
+    if (patch.length > 1 && !headerOptions.includeFileHeaders && !patch.every((p) => p.isGit)) {
+      throw new Error("Cannot omit file headers on a multi-file patch. " + "(The result would be unparseable; how would a tool trying to apply " + "the patch know which changes are to which file?)");
+    }
+    return patch.map((p) => formatPatch(p, headerOptions)).join(`
+`);
+  }
+  const ret = [];
+  if (patch.isGit) {
+    headerOptions = INCLUDE_HEADERS;
+    if (!patch.oldFileName) {
+      throw new Error("oldFileName must be specified for Git patches");
+    }
+    if (!patch.newFileName) {
+      throw new Error("newFileName must be specified for Git patches");
+    }
+    let gitOldName = patch.oldFileName;
+    let gitNewName = patch.newFileName;
+    if (patch.isCreate && gitOldName === "/dev/null") {
+      gitOldName = gitNewName.replace(/^b\//, "a/");
+    } else if (patch.isDelete && gitNewName === "/dev/null") {
+      gitNewName = gitOldName.replace(/^a\//, "b/");
+    }
+    ret.push("diff --git " + quoteFileNameIfNeeded(gitOldName) + " " + quoteFileNameIfNeeded(gitNewName));
+    if (patch.isDelete) {
+      ret.push("deleted file mode " + ((_a = patch.oldMode) !== null && _a !== undefined ? _a : "100644"));
+    }
+    if (patch.isCreate) {
+      ret.push("new file mode " + ((_b = patch.newMode) !== null && _b !== undefined ? _b : "100644"));
+    }
+    if (patch.oldMode && patch.newMode && !patch.isDelete && !patch.isCreate) {
+      ret.push("old mode " + patch.oldMode);
+      ret.push("new mode " + patch.newMode);
+    }
+    if (patch.isRename) {
+      ret.push("rename from " + quoteFileNameIfNeeded(((_c = patch.oldFileName) !== null && _c !== undefined ? _c : "").replace(/^a\//, "")));
+      ret.push("rename to " + quoteFileNameIfNeeded(((_d = patch.newFileName) !== null && _d !== undefined ? _d : "").replace(/^b\//, "")));
+    }
+    if (patch.isCopy) {
+      ret.push("copy from " + quoteFileNameIfNeeded(((_e = patch.oldFileName) !== null && _e !== undefined ? _e : "").replace(/^a\//, "")));
+      ret.push("copy to " + quoteFileNameIfNeeded(((_f = patch.newFileName) !== null && _f !== undefined ? _f : "").replace(/^b\//, "")));
+    }
+  } else {
+    if (headerOptions.includeIndex && patch.oldFileName == patch.newFileName && patch.oldFileName !== undefined) {
+      ret.push("Index: " + patch.oldFileName);
+    }
+    if (headerOptions.includeUnderline) {
+      ret.push("===================================================================");
+    }
+  }
+  const hasHunks = patch.hunks.length > 0;
+  if (headerOptions.includeFileHeaders && patch.oldFileName !== undefined && patch.newFileName !== undefined && (!patch.isGit || hasHunks)) {
+    ret.push("--- " + quoteFileNameIfNeeded(patch.oldFileName) + (patch.oldHeader ? "\t" + patch.oldHeader : ""));
+    ret.push("+++ " + quoteFileNameIfNeeded(patch.newFileName) + (patch.newHeader ? "\t" + patch.newHeader : ""));
+  }
+  for (let i = 0;i < patch.hunks.length; i++) {
+    const hunk = patch.hunks[i];
+    const oldStart = hunk.oldLines === 0 ? hunk.oldStart - 1 : hunk.oldStart;
+    const newStart = hunk.newLines === 0 ? hunk.newStart - 1 : hunk.newStart;
+    ret.push("@@ -" + oldStart + "," + hunk.oldLines + " +" + newStart + "," + hunk.newLines + " @@");
+    for (const line of hunk.lines) {
+      ret.push(line);
+    }
+  }
+  return ret.join(`
+`) + `
+`;
+}
+function createTwoFilesPatch(oldFileName, newFileName, oldStr, newStr, oldHeader, newHeader, options) {
+  if (typeof options === "function") {
+    options = { callback: options };
+  }
+  if (!(options === null || options === undefined ? undefined : options.callback)) {
+    const patchObj = structuredPatch(oldFileName, newFileName, oldStr, newStr, oldHeader, newHeader, options);
+    if (!patchObj) {
+      return;
+    }
+    return formatPatch(patchObj, options === null || options === undefined ? undefined : options.headerOptions);
+  } else {
+    const { callback } = options;
+    structuredPatch(oldFileName, newFileName, oldStr, newStr, oldHeader, newHeader, Object.assign(Object.assign({}, options), { callback: (patchObj) => {
+      if (!patchObj) {
+        callback(undefined);
+      } else {
+        callback(formatPatch(patchObj, options.headerOptions));
+      }
+    } }));
+  }
+}
+function splitLines(text) {
+  const hasTrailingNl = text.endsWith(`
+`);
+  const result = text.split(`
+`).map((line) => line + `
+`);
+  if (hasTrailingNl) {
+    result.pop();
+  } else {
+    result.push(result.pop().slice(0, -1));
+  }
+  return result;
+}
 // src/files.ts
 import { readFileSync, existsSync as existsSync2 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -19937,10 +20508,14 @@ class QueryClient extends import_client_sdk.QueryAPI {
     return `${this.baseUrl}/v1/${route}`;
   }
 }
+function normalizeSql(sql) {
+  return sql.replace(/\r\n/g, `
+`).trim();
+}
 async function processUpdates(options) {
   const { apiKey, files, dryRun = false, apiBaseUrl } = options;
   const results = [];
-  const queryManager = dryRun ? null : new QueryClient(apiKey, apiBaseUrl);
+  const queryManager = new QueryClient(apiKey, apiBaseUrl);
   for (const file of files) {
     const config = resolveQueryConfig(file);
     if (!config) {
@@ -19960,8 +20535,21 @@ async function processUpdates(options) {
       });
       continue;
     }
+    let currentSql;
+    try {
+      currentSql = (await queryManager.readQuery(config.queryId)).query_sql;
+    } catch {
+      currentSql = null;
+    }
+    if (currentSql !== null && normalizeSql(currentSql) === normalizeSql(querySql)) {
+      results.push({ status: "unchanged", queryId: config.queryId, file });
+      continue;
+    }
+    const diff = currentSql !== null ? createTwoFilesPatch(`query-${config.queryId} (dune)`, file, normalizeSql(currentSql) + `
+`, normalizeSql(querySql) + `
+`) : undefined;
     if (dryRun) {
-      results.push({ status: "updated", queryId: config.queryId, file });
+      results.push({ status: "updated", queryId: config.queryId, file, diff });
       continue;
     }
     try {
@@ -19973,7 +20561,7 @@ async function processUpdates(options) {
       if (config.description)
         updateParams.description = config.description;
       await queryManager.updateQuery(config.queryId, updateParams);
-      results.push({ status: "updated", queryId: config.queryId, file });
+      results.push({ status: "updated", queryId: config.queryId, file, diff });
     } catch (error2) {
       results.push({
         status: "failed",
@@ -20016,9 +20604,11 @@ async function run() {
     info(`Processing ${files.length} changed query file(s)`);
     const results = await processUpdates({ apiKey, files, dryRun, apiBaseUrl });
     const updated = results.filter((r) => r.status === "updated");
+    const unchanged = results.filter((r) => r.status === "unchanged");
     const skipped = results.filter((r) => r.status === "skipped");
     const failed = results.filter((r) => r.status === "failed");
     setOutput("updated-count", String(updated.length));
+    setOutput("unchanged-count", String(unchanged.length));
     setOutput("skipped-count", String(skipped.length));
     setOutput("updated-query-ids", updated.map((r) => r.queryId).join(","));
     for (const result of results) {
@@ -20028,6 +20618,9 @@ async function run() {
           info(`${prefix} query ${result.queryId} from ${result.file}`);
           break;
         }
+        case "unchanged":
+          info(`Query ${result.queryId} already matches ${result.file}, nothing to update`);
+          break;
         case "skipped":
           warning(`Skipped ${result.file}: ${result.reason}`);
           break;
@@ -20053,18 +20646,28 @@ async function writeSummary(results, dryRun) {
     { data: "Status", header: true }
   ];
   const dataRows = results.map((r) => {
-    const queryId = r.status === "updated" ? String(r.queryId) : r.status === "failed" && r.queryId ? String(r.queryId) : "-";
-    const status = r.status === "updated" ? dryRun ? "Would Update" : "Updated" : r.status === "skipped" ? "Skipped" : "Failed";
+    const queryId = r.status !== "skipped" && r.queryId ? String(r.queryId) : "-";
+    const status = r.status === "updated" ? dryRun ? "Would Update" : "Updated" : r.status === "unchanged" ? "Unchanged" : r.status === "skipped" ? "Skipped" : "Failed";
     return [queryId, r.file, status];
   });
   const updated = results.filter((r) => r.status === "updated").length;
+  const unchanged = results.filter((r) => r.status === "unchanged").length;
   const skipped = results.filter((r) => r.status === "skipped").length;
   const failed = results.filter((r) => r.status === "failed").length;
-  await summary.addHeading(heading).addTable([headerRow, ...dataRows]).addRaw(`
-**Updated:** ${updated} | **Skipped:** ${skipped} | **Failed:** ${failed}`).write();
+  summary.addHeading(heading).addTable([headerRow, ...dataRows]).addRaw(`
+**Updated:** ${updated} | **Unchanged:** ${unchanged} | **Skipped:** ${skipped} | **Failed:** ${failed}`);
+  for (const result of results) {
+    if (result.status === "updated" && result.diff) {
+      summary.addDetails(`Diff for query ${result.queryId} (${result.file})`, `
+
+<pre><code>${import_escape_html.default(result.diff)}</code></pre>
+`);
+    }
+  }
+  await summary.write();
 }
 
 // src/index.ts
 run();
 
-//# debugId=37D8B21A7B381FE264756E2164756E21
+//# debugId=86D1AF685FA535C464756E2164756E21

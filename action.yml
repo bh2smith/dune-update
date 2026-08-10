@@ -36,6 +36,8 @@ inputs:
 outputs:
   updated-count:
     description: "Number of queries successfully updated"
+  unchanged-count:
+    description: "Number of queries already matching their file (not updated)"
   skipped-count:
     description: "Number of queries skipped"
   updated-query-ids:

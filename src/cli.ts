@@ -110,8 +110,16 @@ async function main(): Promise<void> {
       case "updated": {
         const prefix = dryRun ? "Would update" : "Updated";
         console.log(`  ${prefix} query ${result.queryId} from ${result.file}`);
+        if (dryRun && result.diff) {
+          console.log(result.diff.replace(/^/gm, "    "));
+        }
         break;
       }
+      case "unchanged":
+        console.log(
+          `  Unchanged query ${result.queryId} (${result.file} matches Dune)`,
+        );
+        break;
       case "skipped":
         console.log(`  Skipped ${result.file}: ${result.reason}`);
         break;
@@ -123,10 +131,11 @@ async function main(): Promise<void> {
   }
 
   const updated = results.filter(r => r.status === "updated").length;
+  const unchanged = results.filter(r => r.status === "unchanged").length;
   const skipped = results.filter(r => r.status === "skipped").length;
   const failed = results.filter(r => r.status === "failed").length;
   console.log(
-    `\nResults: ${updated} updated, ${skipped} skipped, ${failed} failed`,
+    `\nResults: ${updated} updated, ${unchanged} unchanged, ${skipped} skipped, ${failed} failed`,
   );
 
   if (hasFailures) process.exit(1);

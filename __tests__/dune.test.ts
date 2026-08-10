@@ -9,6 +9,18 @@ vi.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(
   () => Promise.resolve() as never,
 );
 
+// Default: current query text is unavailable, so comparison is skipped
+// and every changed file results in an update attempt.
+vi.spyOn(QueryAPI.prototype, "readQuery").mockImplementation(
+  () => Promise.reject(new Error("not found")) as never,
+);
+
+function mockCurrentSql(sql: string): void {
+  vi.spyOn(QueryAPI.prototype, "readQuery").mockResolvedValueOnce({
+    query_sql: sql,
+  } as never);
+}
+
 describe("processUpdates", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,7 +76,7 @@ describe("processUpdates", () => {
     ]);
   });
 
-  it("handles dry run without calling API", async () => {
+  it("handles dry run without calling updateQuery", async () => {
     const results = await processUpdates({
       apiKey: "test-key",
       files: ["queries/query_3570870.sql"],
@@ -114,6 +126,89 @@ describe("processUpdates", () => {
     expect(results).toHaveLength(2);
     expect(results[0].status).toBe("failed");
     expect(results[1].status).toBe("updated");
+  });
+
+  it("reports unchanged when Dune already has the same SQL", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "dune-test-"));
+    try {
+      const sqlPath = join(tempDir, "query_42.sql");
+      writeFileSync(sqlPath, "SELECT 1\n");
+      mockCurrentSql("SELECT 1\r\n");
+
+      const results = await processUpdates({
+        apiKey: "test-key",
+        files: [sqlPath],
+      });
+
+      expect(results).toEqual([
+        { status: "unchanged", queryId: 42, file: sqlPath },
+      ]);
+      expect(QueryAPI.prototype.updateQuery).not.toHaveBeenCalled();
+    } finally {
+      rmSync(tempDir, { recursive: true });
+    }
+  });
+
+  it("includes a diff when the query text differs", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "dune-test-"));
+    try {
+      const sqlPath = join(tempDir, "query_42.sql");
+      writeFileSync(sqlPath, "SELECT 2");
+      mockCurrentSql("SELECT 1");
+
+      const results = await processUpdates({
+        apiKey: "test-key",
+        files: [sqlPath],
+      });
+
+      expect(results).toHaveLength(1);
+      const result = results[0];
+      expect(result.status).toBe("updated");
+      if (result.status === "updated") {
+        expect(result.diff).toContain("-SELECT 1");
+        expect(result.diff).toContain("+SELECT 2");
+      }
+      expect(QueryAPI.prototype.updateQuery).toHaveBeenCalledTimes(1);
+    } finally {
+      rmSync(tempDir, { recursive: true });
+    }
+  });
+
+  it("dry run compares against Dune and reports the diff", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "dune-test-"));
+    try {
+      const sqlPath = join(tempDir, "query_42.sql");
+      writeFileSync(sqlPath, "SELECT 2");
+      mockCurrentSql("SELECT 1");
+
+      const results = await processUpdates({
+        apiKey: "test-key",
+        files: [sqlPath],
+        dryRun: true,
+      });
+
+      expect(results).toHaveLength(1);
+      const result = results[0];
+      expect(result.status).toBe("updated");
+      if (result.status === "updated") {
+        expect(result.diff).toContain("-SELECT 1");
+      }
+      expect(QueryAPI.prototype.updateQuery).not.toHaveBeenCalled();
+    } finally {
+      rmSync(tempDir, { recursive: true });
+    }
+  });
+
+  it("still updates when the current query cannot be read", async () => {
+    const results = await processUpdates({
+      apiKey: "test-key",
+      files: ["queries/query_3570870.sql"],
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].status).toBe("updated");
+    expect(results[0]).not.toHaveProperty("diff", expect.any(String));
+    expect(QueryAPI.prototype.updateQuery).toHaveBeenCalledTimes(1);
   });
 
   it("routes requests through a custom API base URL", () => {

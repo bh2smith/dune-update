@@ -1,4 +1,5 @@
 import { QueryAPI } from "@duneanalytics/client-sdk";
+import { createTwoFilesPatch } from "diff";
 import type { UpdateResult, UpdateOptions } from "./types";
 import { resolveQueryConfig, readQueryFile } from "./files";
 
@@ -19,13 +20,17 @@ export class QueryClient extends QueryAPI {
   }
 }
 
+function normalizeSql(sql: string): string {
+  return sql.replace(/\r\n/g, "\n").trim();
+}
+
 export async function processUpdates(
   options: UpdateOptions,
 ): Promise<UpdateResult[]> {
   const { apiKey, files, dryRun = false, apiBaseUrl } = options;
   const results: UpdateResult[] = [];
 
-  const queryManager = dryRun ? null : new QueryClient(apiKey, apiBaseUrl);
+  const queryManager = new QueryClient(apiKey, apiBaseUrl);
 
   for (const file of files) {
     const config = resolveQueryConfig(file);
@@ -48,8 +53,35 @@ export async function processUpdates(
       continue;
     }
 
+    // Comparison against the current query is best-effort: if the read
+    // fails we still attempt the update rather than blocking it.
+    let currentSql: string | null;
+    try {
+      currentSql = (await queryManager.readQuery(config.queryId)).query_sql;
+    } catch {
+      currentSql = null;
+    }
+
+    if (
+      currentSql !== null &&
+      normalizeSql(currentSql) === normalizeSql(querySql)
+    ) {
+      results.push({ status: "unchanged", queryId: config.queryId, file });
+      continue;
+    }
+
+    const diff =
+      currentSql !== null
+        ? createTwoFilesPatch(
+            `query-${config.queryId} (dune)`,
+            file,
+            normalizeSql(currentSql) + "\n",
+            normalizeSql(querySql) + "\n",
+          )
+        : undefined;
+
     if (dryRun) {
-      results.push({ status: "updated", queryId: config.queryId, file });
+      results.push({ status: "updated", queryId: config.queryId, file, diff });
       continue;
     }
 
@@ -64,8 +96,8 @@ export async function processUpdates(
       if (config.name) updateParams.name = config.name;
       if (config.description) updateParams.description = config.description;
 
-      await queryManager!.updateQuery(config.queryId, updateParams);
-      results.push({ status: "updated", queryId: config.queryId, file });
+      await queryManager.updateQuery(config.queryId, updateParams);
+      results.push({ status: "updated", queryId: config.queryId, file, diff });
     } catch (error) {
       results.push({
         status: "failed",

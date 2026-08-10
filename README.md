@@ -71,11 +71,12 @@ precedence over filename parsing.
 
 ### Outputs
 
-| Output              | Description                               |
-| ------------------- | ----------------------------------------- |
-| `updated-count`     | Number of queries successfully updated    |
-| `skipped-count`     | Number of queries skipped                 |
-| `updated-query-ids` | Comma-separated list of updated query IDs |
+| Output              | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| `updated-count`     | Number of queries successfully updated                  |
+| `unchanged-count`   | Number of queries already matching their file (skipped) |
+| `skipped-count`     | Number of queries skipped                               |
+| `updated-query-ids` | Comma-separated list of updated query IDs               |
 
 ### Auto-Detection
 
@@ -149,10 +150,18 @@ jobs:
     changed-files: ${{ steps.changed.outputs.files }}
 ```
 
+### Unchanged Queries & Diffs
+
+Before updating, the action fetches the current query text from Dune. Queries
+whose SQL already matches the repo file are reported as **Unchanged** and left
+untouched. For queries that differ, a unified diff of the pending change is
+included in the job summary — combine with `dry-run: true` to preview exactly
+what would change on a pull request.
+
 ### Job Summary
 
 The action writes a summary table to the GitHub Actions UI showing the status of
-each query update.
+each query update, with collapsible diffs for changed queries.
 
 ## CLI Usage
 

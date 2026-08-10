@@ -42,6 +42,7 @@
   "dependencies": {
     "@actions/core": "^3.0.1",
     "@duneanalytics/client-sdk": "^0.4.4",
+    "diff": "^9.0.0",
     "smol-toml": "^1.7.1"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 export type UpdateResult =
-  | { status: "updated"; queryId: number; file: string }
+  | { status: "updated"; queryId: number; file: string; diff?: string }
+  | { status: "unchanged"; queryId: number; file: string }
   | { status: "skipped"; file: string; reason: string }
   | { status: "failed"; queryId?: number; file: string; error: string };
 

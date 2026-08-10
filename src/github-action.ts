@@ -12,6 +12,7 @@ export async function run(): Promise<void> {
     }
 
     const queryPath = core.getInput("query-path") || "queries";
+    const apiBaseUrl = core.getInput("api-base-url") || undefined;
     const dryRun = core.getInput("dry-run") === "true";
     const failOnError = core.getInput("fail-on-error") !== "false";
 
@@ -38,7 +39,7 @@ export async function run(): Promise<void> {
     }
 
     core.info(`Processing ${files.length} changed query file(s)`);
-    const results = await processUpdates({ apiKey, files, dryRun });
+    const results = await processUpdates({ apiKey, files, dryRun, apiBaseUrl });
 
     const updated = results.filter(r => r.status === "updated") as Extract<
       UpdateResult,

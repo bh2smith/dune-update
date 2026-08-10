@@ -7,6 +7,7 @@ interface CliArgs {
   queryPath: string;
   base?: string;
   dryRun: boolean;
+  apiBaseUrl?: string;
 }
 
 function parseArgs(): CliArgs {
@@ -16,6 +17,7 @@ function parseArgs(): CliArgs {
   let queryPath = "queries";
   let base: string | undefined;
   let dryRun = false;
+  let apiBaseUrl: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -31,6 +33,9 @@ function parseArgs(): CliArgs {
         break;
       case "--base":
         base = args[++i];
+        break;
+      case "--base-url":
+        apiBaseUrl = args[++i];
         break;
       case "--dry-run":
         dryRun = true;
@@ -49,7 +54,7 @@ function parseArgs(): CliArgs {
     process.exit(1);
   }
 
-  return { apiKey, files, queryPath, base, dryRun };
+  return { apiKey, files, queryPath, base, dryRun, apiBaseUrl };
 }
 
 function printUsage(): void {
@@ -61,6 +66,7 @@ Options:
   --files <paths>      Comma-separated list of changed query files
   --query-path <dir>   Directory containing queries (default: queries)
   --base <ref>         Git ref to diff against (default: HEAD~1)
+  --base-url <url>     Dune API base URL (default: https://api.dune.com/api)
   --dry-run            Preview changes without executing updates
   -h, --help           Show this help message
 
@@ -72,7 +78,14 @@ Examples:
 }
 
 async function main(): Promise<void> {
-  const { apiKey, files: explicitFiles, queryPath, base, dryRun } = parseArgs();
+  const {
+    apiKey,
+    files: explicitFiles,
+    queryPath,
+    base,
+    dryRun,
+    apiBaseUrl,
+  } = parseArgs();
 
   const files =
     explicitFiles.length > 0
@@ -89,7 +102,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`Processing ${files.length} changed query file(s)\n`);
-  const results = await processUpdates({ apiKey, files, dryRun });
+  const results = await processUpdates({ apiKey, files, dryRun, apiBaseUrl });
 
   let hasFailures = false;
   for (const result of results) {

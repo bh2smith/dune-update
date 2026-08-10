@@ -58,13 +58,14 @@ precedence over filename parsing.
 
 <!-- markdownlint-disable MD013 -->
 
-| Input           | Required | Default     | Description                           |
-| --------------- | -------- | ----------- | ------------------------------------- |
-| `dune-api-key`  | Yes      | —           | Dune API key (PLUS tier required)     |
-| `query-path`    | No       | `queries`   | Directory containing query files      |
-| `changed-files` | No       | auto-detect | Comma-separated list of changed files |
-| `dry-run`       | No       | `false`     | Preview changes without updating Dune |
-| `fail-on-error` | No       | `true`      | Fail the action if any update fails   |
+| Input           | Required | Default                    | Description                                |
+| --------------- | -------- | -------------------------- | ------------------------------------------ |
+| `dune-api-key`  | Yes      | —                          | Dune API key (PLUS tier required)          |
+| `query-path`    | No       | `queries`                  | Directory containing query files           |
+| `changed-files` | No       | auto-detect                | Comma-separated list of changed files      |
+| `api-base-url`  | No       | `https://api.dune.com/api` | Dune API base URL (e.g. a dev environment) |
+| `dry-run`       | No       | `false`                    | Preview changes without updating Dune      |
+| `fail-on-error` | No       | `true`                     | Fail the action if any update fails        |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -172,6 +173,9 @@ dune-update --api-key <key> --query-path src/queries
 
 # Custom diff base
 dune-update --api-key <key> --base origin/main
+
+# Target a different Dune environment (e.g. dev)
+dune-update --api-key <key> --base-url https://<dev-host>/api
 
 # Preview without updating
 dune-update --api-key <key> --dry-run

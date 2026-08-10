@@ -20,4 +20,5 @@ export interface UpdateOptions {
   apiKey: string;
   files: string[];
   dryRun?: boolean;
+  apiBaseUrl?: string;
 }

@@ -15,6 +15,10 @@ inputs:
   query-path:
     description: "Directory containing query files"
     default: "queries"
+  api-base-url:
+    description:
+      "Dune API base URL (override to target another environment, e.g. dev)"
+    default: "https://api.dune.com/api"
   changed-files:
     description:
       "Comma-separated list of changed query files (auto-detected if omitted)"

@@ -2408,10 +2408,22 @@ function detectDiffBase() {
 }
 
 // src/dune.ts
+var DEFAULT_API_BASE_URL = "https://api.dune.com/api";
+
+class QueryClient extends import_client_sdk.QueryAPI {
+  baseUrl;
+  constructor(apiKey, baseUrl = DEFAULT_API_BASE_URL) {
+    super(apiKey);
+    this.baseUrl = baseUrl;
+  }
+  url(route) {
+    return `${this.baseUrl}/v1/${route}`;
+  }
+}
 async function processUpdates(options) {
-  const { apiKey, files, dryRun = false } = options;
+  const { apiKey, files, dryRun = false, apiBaseUrl } = options;
   const results = [];
-  const queryManager = dryRun ? null : new import_client_sdk.QueryAPI(apiKey);
+  const queryManager = dryRun ? null : new QueryClient(apiKey, apiBaseUrl);
   for (const file of files) {
     const config = resolveQueryConfig(file);
     if (!config) {
@@ -2465,6 +2477,7 @@ function parseArgs() {
   let queryPath = "queries";
   let base;
   let dryRun = false;
+  let apiBaseUrl;
   for (let i = 0;i < args.length; i++) {
     switch (args[i]) {
       case "--api-key":
@@ -2480,6 +2493,9 @@ function parseArgs() {
       case "--base":
         base = args[++i];
         break;
+      case "--base-url":
+        apiBaseUrl = args[++i];
+        break;
       case "--dry-run":
         dryRun = true;
         break;
@@ -2493,7 +2509,7 @@ function parseArgs() {
     console.error("Error: API key required. Use --api-key or set DUNE_API_KEY env var.");
     process.exit(1);
   }
-  return { apiKey, files, queryPath, base, dryRun };
+  return { apiKey, files, queryPath, base, dryRun, apiBaseUrl };
 }
 function printUsage() {
   console.log(`
@@ -2504,6 +2520,7 @@ Options:
   --files <paths>      Comma-separated list of changed query files
   --query-path <dir>   Directory containing queries (default: queries)
   --base <ref>         Git ref to diff against (default: HEAD~1)
+  --base-url <url>     Dune API base URL (default: https://api.dune.com/api)
   --dry-run            Preview changes without executing updates
   -h, --help           Show this help message
 
@@ -2514,7 +2531,14 @@ Examples:
 `);
 }
 async function main() {
-  const { apiKey, files: explicitFiles, queryPath, base, dryRun } = parseArgs();
+  const {
+    apiKey,
+    files: explicitFiles,
+    queryPath,
+    base,
+    dryRun,
+    apiBaseUrl
+  } = parseArgs();
   const files = explicitFiles.length > 0 ? explicitFiles : detectChangedFiles(queryPath, base);
   if (files.length === 0) {
     console.log("No changed query files detected.");
@@ -2526,7 +2550,7 @@ async function main() {
   }
   console.log(`Processing ${files.length} changed query file(s)
 `);
-  const results = await processUpdates({ apiKey, files, dryRun });
+  const results = await processUpdates({ apiKey, files, dryRun, apiBaseUrl });
   let hasFailures = false;
   for (const result of results) {
     switch (result.status) {
@@ -2554,4 +2578,4 @@ Results: ${updated} updated, ${skipped} skipped, ${failed} failed`);
 }
 main();
 
-//# debugId=752C5AF2F4E027EE64756E2164756E21
+//# debugId=59EEF115E48B840464756E2164756E21

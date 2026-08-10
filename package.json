@@ -36,7 +36,7 @@
     "lint": "bunx --bun eslint .",
     "package": "bun build src/index.ts src/cli.ts --outdir dist --target node --bundle --sourcemap=external",
     "test": "bunx --bun vitest run",
-    "all": "bun run format:write && bun run lint && bun run test && bun run package"
+    "check": "bun run format:check && bun run lint && bun run test"
   },
   "license": "MIT",
   "dependencies": {

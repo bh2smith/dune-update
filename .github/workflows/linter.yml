@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
-  statuses: write
 
 jobs:
   lint:
@@ -20,30 +18,16 @@ jobs:
 
     steps:
       - name: Checkout
-        id: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Setup Bun
-        id: setup-bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
 
       - name: Install Dependencies
-        id: install
         run: bun install --frozen-lockfile
 
-      - name: Lint Codebase
-        id: super-linter
-        uses: super-linter/super-linter/slim@9e863354e3ff62e0727d37183162c4a88873df41 # v8
-        env:
-          DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: true
-          VALIDATE_JSCPD: false
-          TYPESCRIPT_ES_CONFIG_FILE: ../../eslint.config.mjs
-          VALIDATE_TYPESCRIPT_STANDARD: false
-          VALIDATE_BIOME_FORMAT: false
-          VALIDATE_BIOME_LINT: false
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Lint
+        run: bun run lint

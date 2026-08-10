@@ -1,6 +1,5 @@
 # Dune Query Updater
 
-[![GitHub Super-Linter](https://github.com/actions/javascript-action/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
 ![CI](https://github.com/actions/javascript-action/actions/workflows/ci.yml/badge.svg)
 
 A GitHub Action (and standalone CLI) for syncing SQL query files to

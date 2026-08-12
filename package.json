@@ -8,6 +8,9 @@
   "bin": {
     "dune-update": "./dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "homepage": "https://github.com/bh2smith/dune-update#readme",
   "repository": {
     "type": "git",

@@ -2952,6 +2952,21 @@ function normalizeSql(sql) {
   return sql.replace(/\r\n/g, `
 `).trim();
 }
+function isTransientError(error) {
+  return /HTTP - Status: (429|5\d\d),/.test(error.message) || error.message.startsWith("Response ");
+}
+async function withRetry(fn, options = {}) {
+  const { retries = 2, baseDelayMs = 1000 } = options;
+  for (let attempt = 0;; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt >= retries || !isTransientError(error))
+        throw error;
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * 2 ** attempt));
+    }
+  }
+}
 async function processUpdates(options) {
   const { apiKey, files, dryRun = false, apiBaseUrl } = options;
   const results = [];
@@ -2976,10 +2991,12 @@ async function processUpdates(options) {
       continue;
     }
     let currentSql;
+    let readError;
     try {
-      currentSql = (await queryManager.readQuery(config.queryId)).query_sql;
-    } catch {
+      currentSql = (await withRetry(() => queryManager.readQuery(config.queryId))).query_sql;
+    } catch (error) {
       currentSql = null;
+      readError = error.message;
     }
     if (currentSql !== null && normalizeSql(currentSql) === normalizeSql(querySql)) {
       results.push({ status: "unchanged", queryId: config.queryId, file });
@@ -2989,7 +3006,13 @@ async function processUpdates(options) {
 `, normalizeSql(querySql) + `
 `) : undefined;
     if (dryRun) {
-      results.push({ status: "updated", queryId: config.queryId, file, diff });
+      results.push({
+        status: "updated",
+        queryId: config.queryId,
+        file,
+        diff,
+        readError
+      });
       continue;
     }
     try {
@@ -3000,8 +3023,14 @@ async function processUpdates(options) {
         updateParams.name = config.name;
       if (config.description)
         updateParams.description = config.description;
-      await queryManager.updateQuery(config.queryId, updateParams);
-      results.push({ status: "updated", queryId: config.queryId, file, diff });
+      await withRetry(() => queryManager.updateQuery(config.queryId, updateParams));
+      results.push({
+        status: "updated",
+        queryId: config.queryId,
+        file,
+        diff,
+        readError
+      });
     } catch (error) {
       results.push({
         status: "failed",
@@ -3100,6 +3129,9 @@ async function main() {
       case "updated": {
         const prefix = dryRun ? "Would update" : "Updated";
         console.log(`  ${prefix} query ${result.queryId} from ${result.file}`);
+        if (result.readError) {
+          console.log(`    (could not read current SQL: ${result.readError})`);
+        }
         if (dryRun && result.diff) {
           console.log(result.diff.replace(/^/gm, "    "));
         }
@@ -3128,4 +3160,4 @@ Results: ${updated} updated, ${unchanged} unchanged, ${skipped} skipped, ${faile
 }
 main();
 
-//# debugId=287733510784D46E64756E2164756E21
+//# debugId=472770529C143FD464756E2164756E21

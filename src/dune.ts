@@ -24,6 +24,33 @@ function normalizeSql(sql: string): string {
   return sql.replace(/\r\n/g, "\n").trim();
 }
 
+// The SDK's DuneError only exposes the HTTP status inside the message text
+// ("HTTP - Status: 429, Message: ..."); network failures are prefixed with
+// "Response ".
+function isTransientError(error: Error): boolean {
+  return (
+    /HTTP - Status: (429|5\d\d),/.test(error.message) ||
+    error.message.startsWith("Response ")
+  );
+}
+
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: { retries?: number; baseDelayMs?: number } = {},
+): Promise<T> {
+  const { retries = 2, baseDelayMs = 1000 } = options;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt >= retries || !isTransientError(error as Error)) throw error;
+      await new Promise(resolve =>
+        setTimeout(resolve, baseDelayMs * 2 ** attempt),
+      );
+    }
+  }
+}
+
 export async function processUpdates(
   options: UpdateOptions,
 ): Promise<UpdateResult[]> {
@@ -54,12 +81,17 @@ export async function processUpdates(
     }
 
     // Comparison against the current query is best-effort: if the read
-    // fails we still attempt the update rather than blocking it.
+    // fails we still attempt the update rather than blocking it, but the
+    // failure is surfaced on the result so previews aren't silently blind.
     let currentSql: string | null;
+    let readError: string | undefined;
     try {
-      currentSql = (await queryManager.readQuery(config.queryId)).query_sql;
-    } catch {
+      currentSql = (
+        await withRetry(() => queryManager.readQuery(config.queryId))
+      ).query_sql;
+    } catch (error) {
       currentSql = null;
+      readError = (error as Error).message;
     }
 
     if (
@@ -81,7 +113,13 @@ export async function processUpdates(
         : undefined;
 
     if (dryRun) {
-      results.push({ status: "updated", queryId: config.queryId, file, diff });
+      results.push({
+        status: "updated",
+        queryId: config.queryId,
+        file,
+        diff,
+        readError,
+      });
       continue;
     }
 
@@ -96,8 +134,16 @@ export async function processUpdates(
       if (config.name) updateParams.name = config.name;
       if (config.description) updateParams.description = config.description;
 
-      await queryManager.updateQuery(config.queryId, updateParams);
-      results.push({ status: "updated", queryId: config.queryId, file, diff });
+      await withRetry(() =>
+        queryManager.updateQuery(config.queryId, updateParams),
+      );
+      results.push({
+        status: "updated",
+        queryId: config.queryId,
+        file,
+        diff,
+        readError,
+      });
     } catch (error) {
       results.push({
         status: "failed",

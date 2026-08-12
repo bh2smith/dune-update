@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { processUpdates, QueryClient } from "../src/dune";
+import { processUpdates, withRetry, QueryClient } from "../src/dune";
 import { QueryAPI } from "@duneanalytics/client-sdk";
 
 vi.spyOn(QueryAPI.prototype, "updateQuery").mockImplementation(
@@ -37,11 +37,13 @@ describe("processUpdates", () => {
       status: "updated",
       queryId: 3570870,
       file: "queries/query_3570870.sql",
+      readError: "not found",
     });
     expect(results[1]).toEqual({
       status: "updated",
       queryId: 871114,
       file: "queries/query_871114.sql",
+      readError: "not found",
     });
     expect(QueryAPI.prototype.updateQuery).toHaveBeenCalledTimes(2);
   });
@@ -88,6 +90,7 @@ describe("processUpdates", () => {
         status: "updated",
         queryId: 3570870,
         file: "queries/query_3570870.sql",
+        readError: "not found",
       },
     ]);
     expect(QueryAPI.prototype.updateQuery).not.toHaveBeenCalled();
@@ -199,6 +202,20 @@ describe("processUpdates", () => {
     }
   });
 
+  it("surfaces the read failure on dry-run results", async () => {
+    const results = await processUpdates({
+      apiKey: "test-key",
+      files: ["queries/query_3570870.sql"],
+      dryRun: true,
+    });
+
+    expect(results[0]).toMatchObject({
+      status: "updated",
+      readError: "not found",
+    });
+    expect(results[0]).not.toHaveProperty("diff", expect.any(String));
+  });
+
   it("still updates when the current query cannot be read", async () => {
     const results = await processUpdates({
       apiKey: "test-key",
@@ -236,7 +253,12 @@ describe("processUpdates", () => {
       });
 
       expect(results).toEqual([
-        { status: "updated", queryId: 42, file: sqlPath },
+        {
+          status: "updated",
+          queryId: 42,
+          file: sqlPath,
+          readError: "not found",
+        },
       ]);
       expect(QueryAPI.prototype.updateQuery).toHaveBeenCalledWith(42, {
         query_sql: "SELECT 1",
@@ -244,5 +266,52 @@ describe("processUpdates", () => {
     } finally {
       rmSync(tempDir, { recursive: true });
     }
+  });
+});
+
+describe("withRetry", () => {
+  it("retries transient errors until success", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new Error("HTTP - Status: 429, Message: rate limited"),
+      )
+      .mockRejectedValueOnce(
+        new Error("HTTP - Status: 503, Message: unavailable"),
+      )
+      .mockResolvedValueOnce("ok");
+
+    await expect(withRetry(fn, { baseDelayMs: 1 })).resolves.toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries network failures", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Response TypeError: fetch failed"))
+      .mockResolvedValueOnce("ok");
+
+    await expect(withRetry(fn, { baseDelayMs: 1 })).resolves.toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry non-transient errors", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValue(new Error("HTTP - Status: 400, Message: bad input"));
+
+    await expect(withRetry(fn, { baseDelayMs: 1 })).rejects.toThrow("400");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up after the configured number of retries", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValue(new Error("HTTP - Status: 500, Message: boom"));
+
+    await expect(withRetry(fn, { retries: 2, baseDelayMs: 1 })).rejects.toThrow(
+      "500",
+    );
+    expect(fn).toHaveBeenCalledTimes(3);
   });
 });

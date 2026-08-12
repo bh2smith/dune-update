@@ -20520,6 +20520,21 @@ function normalizeSql(sql) {
   return sql.replace(/\r\n/g, `
 `).trim();
 }
+function isTransientError(error2) {
+  return /HTTP - Status: (429|5\d\d),/.test(error2.message) || error2.message.startsWith("Response ");
+}
+async function withRetry(fn, options = {}) {
+  const { retries = 2, baseDelayMs = 1000 } = options;
+  for (let attempt = 0;; attempt++) {
+    try {
+      return await fn();
+    } catch (error2) {
+      if (attempt >= retries || !isTransientError(error2))
+        throw error2;
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * 2 ** attempt));
+    }
+  }
+}
 async function processUpdates(options) {
   const { apiKey, files, dryRun = false, apiBaseUrl } = options;
   const results = [];
@@ -20544,10 +20559,12 @@ async function processUpdates(options) {
       continue;
     }
     let currentSql;
+    let readError;
     try {
-      currentSql = (await queryManager.readQuery(config.queryId)).query_sql;
-    } catch {
+      currentSql = (await withRetry(() => queryManager.readQuery(config.queryId))).query_sql;
+    } catch (error2) {
       currentSql = null;
+      readError = error2.message;
     }
     if (currentSql !== null && normalizeSql(currentSql) === normalizeSql(querySql)) {
       results.push({ status: "unchanged", queryId: config.queryId, file });
@@ -20557,7 +20574,13 @@ async function processUpdates(options) {
 `, normalizeSql(querySql) + `
 `) : undefined;
     if (dryRun) {
-      results.push({ status: "updated", queryId: config.queryId, file, diff });
+      results.push({
+        status: "updated",
+        queryId: config.queryId,
+        file,
+        diff,
+        readError
+      });
       continue;
     }
     try {
@@ -20568,8 +20591,14 @@ async function processUpdates(options) {
         updateParams.name = config.name;
       if (config.description)
         updateParams.description = config.description;
-      await queryManager.updateQuery(config.queryId, updateParams);
-      results.push({ status: "updated", queryId: config.queryId, file, diff });
+      await withRetry(() => queryManager.updateQuery(config.queryId, updateParams));
+      results.push({
+        status: "updated",
+        queryId: config.queryId,
+        file,
+        diff,
+        readError
+      });
     } catch (error2) {
       results.push({
         status: "failed",
@@ -20624,6 +20653,9 @@ async function run() {
         case "updated": {
           const prefix = dryRun ? "Would update" : "Updated";
           info(`${prefix} query ${result.queryId} from ${result.file}`);
+          if (result.readError) {
+            warning(`Could not read current SQL of query ${result.queryId} (${result.readError}); ` + (dryRun ? "the real run may fail the same way" : "updated without comparing"));
+          }
           break;
         }
         case "unchanged":
@@ -20655,7 +20687,8 @@ async function writeSummary(results, dryRun) {
   ];
   const dataRows = results.map((r) => {
     const queryId = r.status !== "skipped" && r.queryId ? String(r.queryId) : "-";
-    const status = r.status === "updated" ? dryRun ? "Would Update" : "Updated" : r.status === "unchanged" ? "Unchanged" : r.status === "skipped" ? "Skipped" : "Failed";
+    const unverified = r.status === "updated" && r.readError ? " (current SQL unreadable)" : "";
+    const status = r.status === "updated" ? (dryRun ? "Would Update" : "Updated") + unverified : r.status === "unchanged" ? "Unchanged" : r.status === "skipped" ? "Skipped" : "Failed";
     return [queryId, r.file, status];
   });
   const updated = results.filter((r) => r.status === "updated").length;
@@ -20678,4 +20711,4 @@ async function writeSummary(results, dryRun) {
 // src/index.ts
 run();
 
-//# debugId=E1B953D340B9B9B564756E2164756E21
+//# debugId=EBBD658F1FAD06AE64756E2164756E21

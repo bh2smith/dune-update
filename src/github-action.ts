@@ -60,6 +60,14 @@ export async function run(): Promise<void> {
         case "updated": {
           const prefix = dryRun ? "Would update" : "Updated";
           core.info(`${prefix} query ${result.queryId} from ${result.file}`);
+          if (result.readError) {
+            core.warning(
+              `Could not read current SQL of query ${result.queryId} (${result.readError}); ` +
+                (dryRun
+                  ? "the real run may fail the same way"
+                  : "updated without comparing"),
+            );
+          }
           break;
         }
         case "unchanged":
@@ -105,11 +113,11 @@ async function writeSummary(
     const queryId =
       r.status !== "skipped" && r.queryId ? String(r.queryId) : "-";
 
+    const unverified =
+      r.status === "updated" && r.readError ? " (current SQL unreadable)" : "";
     const status =
       r.status === "updated"
-        ? dryRun
-          ? "Would Update"
-          : "Updated"
+        ? (dryRun ? "Would Update" : "Updated") + unverified
         : r.status === "unchanged"
           ? "Unchanged"
           : r.status === "skipped"

@@ -119,6 +119,9 @@ async function main(): Promise<void> {
       case "updated": {
         const prefix = dryRun ? "Would update" : "Updated";
         console.log(`  ${prefix} query ${result.queryId} from ${result.file}`);
+        if (result.readError) {
+          console.log(`    (could not read current SQL: ${result.readError})`);
+        }
         if (dryRun && result.diff) {
           console.log(result.diff.replace(/^/gm, "    "));
         }

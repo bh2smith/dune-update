@@ -1,3 +1,4 @@
+import { parseArgs as parseArgv } from "node:util";
 import { processUpdates } from "./dune";
 import { detectChangedFiles } from "./files";
 
@@ -11,42 +12,42 @@ interface CliArgs {
 }
 
 function parseArgs(): CliArgs {
-  const args = process.argv.slice(2);
-  let apiKey = process.env.DUNE_API_KEY || "";
-  let files: string[] = [];
-  let queryPath = "queries";
-  let base: string | undefined;
-  let dryRun = false;
-  let apiBaseUrl: string | undefined;
+  let values: {
+    "api-key"?: string;
+    files?: string;
+    changed?: string;
+    "query-path": string;
+    base?: string;
+    "base-url"?: string;
+    "dry-run": boolean;
+    help: boolean;
+  };
 
-  for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case "--api-key":
-        apiKey = args[++i];
-        break;
-      case "--files":
-      case "--changed":
-        files = args[++i].split(",");
-        break;
-      case "--query-path":
-        queryPath = args[++i];
-        break;
-      case "--base":
-        base = args[++i];
-        break;
-      case "--base-url":
-        apiBaseUrl = args[++i];
-        break;
-      case "--dry-run":
-        dryRun = true;
-        break;
-      case "--help":
-      case "-h":
-        printUsage();
-        process.exit(0);
-    }
+  try {
+    ({ values } = parseArgv({
+      options: {
+        "api-key": { type: "string" },
+        files: { type: "string" },
+        changed: { type: "string" },
+        "query-path": { type: "string", default: "queries" },
+        base: { type: "string" },
+        "base-url": { type: "string" },
+        "dry-run": { type: "boolean", default: false },
+        help: { type: "boolean", short: "h", default: false },
+      },
+    }));
+  } catch (error) {
+    console.error(`Error: ${(error as Error).message}`);
+    printUsage();
+    process.exit(1);
   }
 
+  if (values.help) {
+    printUsage();
+    process.exit(0);
+  }
+
+  const apiKey = values["api-key"] || process.env.DUNE_API_KEY || "";
   if (!apiKey) {
     console.error(
       "Error: API key required. Use --api-key or set DUNE_API_KEY env var.",
@@ -54,7 +55,15 @@ function parseArgs(): CliArgs {
     process.exit(1);
   }
 
-  return { apiKey, files, queryPath, base, dryRun, apiBaseUrl };
+  const fileList = values.files ?? values.changed;
+  return {
+    apiKey,
+    files: fileList ? fileList.split(",") : [],
+    queryPath: values["query-path"],
+    base: values.base,
+    dryRun: values["dry-run"],
+    apiBaseUrl: values["base-url"],
+  };
 }
 
 function printUsage(): void {

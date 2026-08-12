@@ -1,11 +1,12 @@
 # Keeps the floating major version tag (e.g. `v1`) pointed at the latest
 # release so workflows referencing `bh2smith/dune-update@v1` pick up new
-# `v1.x.y` releases automatically.
+# `v1.x.y` releases automatically, and publishes the package to npm.
 #
 # Release process:
 #   1. Bump `version` in package.json to match the new tag and merge to main.
 #   2. Publish a GitHub release with a `v{major}.{minor}.{patch}` tag.
-#   3. This workflow re-points the `v{major}` tag at that release.
+#   3. This workflow re-points the `v{major}` tag at that release and
+#      publishes to npm (requires the NPM_TOKEN repository secret).
 name: Release
 
 on:
@@ -30,3 +31,43 @@ jobs:
         uses: actions/publish-action@23f4c6f12633a2da8f44938b71fde9afec138fb4 # v0.4.0
         with:
           source-tag: ${{ github.event.release.tag_name }}
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        id: setup-node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify version matches release tag
+        id: verify-version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PKG="v$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "package.json version ($PKG) does not match release tag ($TAG)"
+            exit 1
+          fi
+
+      # dist/ is committed and verified by check-dist, so no build step.
+      - name: Publish
+        id: npm-publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public

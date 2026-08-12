@@ -52,6 +52,11 @@ description = "Updates dashboard metric"
 Both approaches work side-by-side. When a `dune.toml` is present, it takes
 precedence over filename parsing.
 
+A `dune.toml` maps exactly one query, so its directory must contain exactly one
+`.sql` file — the action fails loudly if it finds more, since they would all
+overwrite the same query on Dune. Use one directory per query (or the filename
+convention, which has no such restriction).
+
 ### New Queries
 
 The action updates existing Dune queries; it does not create them. To bring a

@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { parse as parseToml } from "smol-toml";
@@ -38,9 +38,21 @@ export function readDuneToml(sqlFilePath: string): DuneTomlConfig | null {
   }
 }
 
+// Throws when a dune.toml directory holds more than one .sql file: the toml
+// maps a single query ID, so multiple files would silently overwrite the
+// same query on Dune.
 export function resolveQueryConfig(filePath: string): QueryConfig | null {
   const tomlConfig = readDuneToml(filePath);
   if (tomlConfig) {
+    const dir = dirname(filePath);
+    const sqlFiles = readdirSync(dir).filter(f => f.endsWith(".sql"));
+    if (sqlFiles.length > 1) {
+      throw new Error(
+        `dune.toml in '${dir}' maps a single query, but the directory ` +
+          `contains ${sqlFiles.length} .sql files (${sqlFiles.join(", ")}). ` +
+          `Keep one query per directory.`,
+      );
+    }
     return { ...tomlConfig, file: filePath };
   }
 

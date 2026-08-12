@@ -124,4 +124,26 @@ describe("resolveQueryConfig", () => {
   it("returns null when neither works", () => {
     expect(resolveQueryConfig("queries/invalid.sql")).toBeNull();
   });
+
+  it("throws when a dune.toml directory holds multiple .sql files", () => {
+    writeFileSync(join(tempDir, "dune.toml"), "[query]\nid = 999");
+    writeFileSync(join(tempDir, "first.sql"), "SELECT 1");
+    writeFileSync(join(tempDir, "second.sql"), "SELECT 2");
+
+    expect(() => resolveQueryConfig(join(tempDir, "first.sql"))).toThrow(
+      "one query per directory",
+    );
+  });
+
+  it("allows non-sql siblings next to a dune.toml", () => {
+    writeFileSync(join(tempDir, "dune.toml"), "[query]\nid = 999");
+    writeFileSync(join(tempDir, "query.sql"), "SELECT 1");
+    writeFileSync(join(tempDir, "README.md"), "docs");
+
+    const sqlPath = join(tempDir, "query.sql");
+    expect(resolveQueryConfig(sqlPath)).toEqual({
+      queryId: 999,
+      file: sqlPath,
+    });
+  });
 });

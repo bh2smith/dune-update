@@ -1930,7 +1930,7 @@ function splitLines(text) {
   return result;
 }
 // src/files.ts
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 
@@ -2894,6 +2894,11 @@ function readDuneToml(sqlFilePath) {
 function resolveQueryConfig(filePath) {
   const tomlConfig = readDuneToml(filePath);
   if (tomlConfig) {
+    const dir = dirname(filePath);
+    const sqlFiles = readdirSync(dir).filter((f) => f.endsWith(".sql"));
+    if (sqlFiles.length > 1) {
+      throw new Error(`dune.toml in '${dir}' maps a single query, but the directory ` + `contains ${sqlFiles.length} .sql files (${sqlFiles.join(", ")}). ` + `Keep one query per directory.`);
+    }
     return { ...tomlConfig, file: filePath };
   }
   const queryId = extractQueryId(filePath);
@@ -2972,7 +2977,17 @@ async function processUpdates(options) {
   const results = [];
   const queryManager = new QueryClient(apiKey, apiBaseUrl);
   for (const file of files) {
-    const config = resolveQueryConfig(file);
+    let config;
+    try {
+      config = resolveQueryConfig(file);
+    } catch (error) {
+      results.push({
+        status: "failed",
+        file,
+        error: error.message
+      });
+      continue;
+    }
     if (!config) {
       results.push({
         status: "failed",
@@ -3160,4 +3175,4 @@ Results: ${updated} updated, ${unchanged} unchanged, ${skipped} skipped, ${faile
 }
 main();
 
-//# debugId=472770529C143FD464756E2164756E21
+//# debugId=6AD01E3E78591C8264756E2164756E21

@@ -1406,6 +1406,9 @@ var require_cjs = __commonJS((exports) => {
   } });
 });
 
+// src/cli.ts
+import { parseArgs as parseArgv } from "node:util";
+
 // src/dune.ts
 var import_client_sdk = __toESM(require_cjs(), 1);
 // node_modules/diff/libesm/diff/base.js
@@ -3013,45 +3016,43 @@ async function processUpdates(options) {
 
 // src/cli.ts
 function parseArgs() {
-  const args = process.argv.slice(2);
-  let apiKey = process.env.DUNE_API_KEY || "";
-  let files = [];
-  let queryPath = "queries";
-  let base;
-  let dryRun = false;
-  let apiBaseUrl;
-  for (let i = 0;i < args.length; i++) {
-    switch (args[i]) {
-      case "--api-key":
-        apiKey = args[++i];
-        break;
-      case "--files":
-      case "--changed":
-        files = args[++i].split(",");
-        break;
-      case "--query-path":
-        queryPath = args[++i];
-        break;
-      case "--base":
-        base = args[++i];
-        break;
-      case "--base-url":
-        apiBaseUrl = args[++i];
-        break;
-      case "--dry-run":
-        dryRun = true;
-        break;
-      case "--help":
-      case "-h":
-        printUsage();
-        process.exit(0);
-    }
+  let values;
+  try {
+    ({ values } = parseArgv({
+      options: {
+        "api-key": { type: "string" },
+        files: { type: "string" },
+        changed: { type: "string" },
+        "query-path": { type: "string", default: "queries" },
+        base: { type: "string" },
+        "base-url": { type: "string" },
+        "dry-run": { type: "boolean", default: false },
+        help: { type: "boolean", short: "h", default: false }
+      }
+    }));
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    printUsage();
+    process.exit(1);
   }
+  if (values.help) {
+    printUsage();
+    process.exit(0);
+  }
+  const apiKey = values["api-key"] || process.env.DUNE_API_KEY || "";
   if (!apiKey) {
     console.error("Error: API key required. Use --api-key or set DUNE_API_KEY env var.");
     process.exit(1);
   }
-  return { apiKey, files, queryPath, base, dryRun, apiBaseUrl };
+  const fileList = values.files ?? values.changed;
+  return {
+    apiKey,
+    files: fileList ? fileList.split(",") : [],
+    queryPath: values["query-path"],
+    base: values.base,
+    dryRun: values["dry-run"],
+    apiBaseUrl: values["base-url"]
+  };
 }
 function printUsage() {
   console.log(`
@@ -3127,4 +3128,4 @@ Results: ${updated} updated, ${unchanged} unchanged, ${skipped} skipped, ${faile
 }
 main();
 
-//# debugId=4C43A3BE05505B5F64756E2164756E21
+//# debugId=287733510784D46E64756E2164756E21

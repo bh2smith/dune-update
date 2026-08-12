@@ -19500,7 +19500,7 @@ function splitLines(text) {
 // src/files.ts
 import { readFileSync, existsSync as existsSync2 } from "node:fs";
 import { dirname, join } from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 // node_modules/smol-toml/dist/date.js
 /*!
@@ -20472,7 +20472,15 @@ function resolveQueryConfig(filePath) {
 function detectChangedFiles(queryPath, base) {
   const diffBase = base || detectDiffBase();
   try {
-    const result = execSync(`git diff --name-only --diff-filter=ACMRT ${diffBase} HEAD -- "${queryPath}"`, { encoding: "utf8" });
+    const result = execFileSync("git", [
+      "diff",
+      "--name-only",
+      "--diff-filter=ACMRT",
+      diffBase,
+      "HEAD",
+      "--",
+      queryPath
+    ], { encoding: "utf8" });
     return result.trim().split(`
 `).filter((f) => f.endsWith(".sql") && f !== "");
   } catch {
@@ -20670,4 +20678,4 @@ async function writeSummary(results, dryRun) {
 // src/index.ts
 run();
 
-//# debugId=86D1AF685FA535C464756E2164756E21
+//# debugId=E1B953D340B9B9B564756E2164756E21

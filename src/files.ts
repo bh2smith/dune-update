@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { parse as parseToml } from "smol-toml";
 import type { QueryConfig, DuneTomlConfig } from "./types";
 
@@ -53,8 +53,17 @@ export function detectChangedFiles(queryPath: string, base?: string): string[] {
   const diffBase = base || detectDiffBase();
 
   try {
-    const result = execSync(
-      `git diff --name-only --diff-filter=ACMRT ${diffBase} HEAD -- "${queryPath}"`,
+    const result = execFileSync(
+      "git",
+      [
+        "diff",
+        "--name-only",
+        "--diff-filter=ACMRT",
+        diffBase,
+        "HEAD",
+        "--",
+        queryPath,
+      ],
       { encoding: "utf8" },
     );
     return result

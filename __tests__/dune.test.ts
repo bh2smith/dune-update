@@ -240,6 +240,31 @@ describe("processUpdates", () => {
     expect(client.url("query/42")).toBe("https://api.dune.com/api/v1/query/42");
   });
 
+  it("fails when a dune.toml directory holds multiple .sql files", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "dune-test-"));
+    try {
+      writeFileSync(join(tempDir, "dune.toml"), "[query]\nid = 42");
+      writeFileSync(join(tempDir, "first.sql"), "SELECT 1");
+      writeFileSync(join(tempDir, "second.sql"), "SELECT 2");
+
+      const results = await processUpdates({
+        apiKey: "test-key",
+        files: [join(tempDir, "first.sql")],
+      });
+
+      expect(results).toEqual([
+        {
+          status: "failed",
+          file: join(tempDir, "first.sql"),
+          error: expect.stringContaining("one query per directory"),
+        },
+      ]);
+      expect(QueryAPI.prototype.updateQuery).not.toHaveBeenCalled();
+    } finally {
+      rmSync(tempDir, { recursive: true });
+    }
+  });
+
   it("reads config from dune.toml when present", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), "dune-test-"));
     try {

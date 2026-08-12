@@ -60,7 +60,17 @@ export async function processUpdates(
   const queryManager = new QueryClient(apiKey, apiBaseUrl);
 
   for (const file of files) {
-    const config = resolveQueryConfig(file);
+    let config: ReturnType<typeof resolveQueryConfig>;
+    try {
+      config = resolveQueryConfig(file);
+    } catch (error) {
+      results.push({
+        status: "failed",
+        file,
+        error: (error as Error).message,
+      });
+      continue;
+    }
     if (!config) {
       results.push({
         status: "failed",

@@ -1,6 +1,6 @@
 # Dune Query Updater
 
-![CI](https://github.com/actions/javascript-action/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/bh2smith/dune-update/actions/workflows/ci.yml/badge.svg)
 
 A GitHub Action (and standalone CLI) for syncing SQL query files to
 [Dune Analytics](https://dune.com). Edit queries locally, push to GitHub, and
@@ -51,6 +51,20 @@ description = "Updates dashboard metric"
 
 Both approaches work side-by-side. When a `dune.toml` is present, it takes
 precedence over filename parsing.
+
+### New Queries
+
+The action updates existing Dune queries; it does not create them. To bring a
+new query under management:
+
+1. Create the query on Dune (via the UI or API) and note its ID from the URL
+   (`dune.com/queries/{queryId}`).
+2. Add the SQL file to your repo, either named `*_{queryId}.sql` or with the ID
+   in an adjacent `dune.toml`.
+
+From then on, every change to the file syncs to Dune. Creating queries directly
+from this action is tracked in
+[#52](https://github.com/bh2smith/dune-update/issues/52).
 
 ## GitHub Action
 
@@ -165,12 +179,21 @@ each query update, with collapsible diffs for changed queries.
 
 ## CLI Usage
 
-Run locally without GitHub Actions:
+Run locally without GitHub Actions. The package is not yet published to npm
+([#36](https://github.com/bh2smith/dune-update/issues/36)), so run it straight
+from the repository:
 
 ```bash
-# Install
-npm install -g dune-update-action
+# Run without installing (uses the committed dist/ bundle)
+npx github:bh2smith/dune-update --api-key <key>
 
+# Or from a clone
+node dist/cli.js --api-key <key>
+```
+
+All examples below use `dune-update` as shorthand for either invocation:
+
+```bash
 # Auto-detect changes (uses git diff HEAD~1)
 dune-update --api-key <key>
 
@@ -203,7 +226,8 @@ Existing workflows will continue to function without changes.
 bun install
 bun run test       # Run tests
 bun run lint       # Lint
-bun run all        # Format, lint, test, bundle
+bun run check      # Format check, lint, test
+bun run bundle     # Format and rebuild dist/
 ```
 
 For a real example of this action in use, see the

@@ -1,0 +1,32 @@
+# Keeps the floating major version tag (e.g. `v1`) pointed at the latest
+# release so workflows referencing `bh2smith/dune-update@v1` pick up new
+# `v1.x.y` releases automatically.
+#
+# Release process:
+#   1. Bump `version` in package.json to match the new tag and merge to main.
+#   2. Publish a GitHub release with a `v{major}.{minor}.{patch}` tag.
+#   3. This workflow re-points the `v{major}` tag at that release.
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-major-tag:
+    name: Update Major Version Tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Update major version tag
+        id: publish
+        uses: actions/publish-action@23f4c6f12633a2da8f44938b71fde9afec138fb4 # v0.4.0
+        with:
+          source-tag: ${{ github.event.release.tag_name }}

@@ -1,7 +1,7 @@
 {
   "name": "dune-update-action",
   "description": "GitHub Actions For Dune Query Updates",
-  "version": "0.0.0",
+  "version": "0.3.0",
   "author": "Ben Smith (@bh2smith)",
   "type": "module",
   "private": false,
